@@ -141,9 +141,10 @@ fun ShareCardDialog(
                     busy = true
                     scope.launch {
                         runCatching {
+                            // Подпись к картинке — тот же текст со ссылкой, что и «Текстом».
                             com.kinoteka.app.ui.share.shareLayer(
                                 context, layer,
-                                tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"),
+                                shareText ?: tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"),
                             )
                         }
                         busy = false

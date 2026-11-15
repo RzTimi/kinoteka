@@ -91,20 +91,33 @@ fun movieShareText(
     if (!manual) append("\n").append(tmdbUrl(type, id))
 }
 
-/** Текст про список фильмов (подборку). */
-fun listShareText(title: String, entries: List<LibraryEntry>): String = buildString {
+/** Подпись к картинке: Telegram и другие режут длинные подписи (~1024 символа). */
+const val CAPTION_LIMIT = 1000
+
+/** Текст про список фильмов (подборку). [maxChars] — если не влезает, хвост заменяем на «…и ещё N». */
+fun listShareText(title: String, entries: List<LibraryEntry>, maxChars: Int = Int.MAX_VALUE): String {
     val n = entries.size
-    append("📁 ").append(title).append(" — ")
-    append("$n ${plural(n, "фільм|фільми|фільмів", "title|titles", "фильм|фильма|фильмов")}")
-    append("\n")
-    entries.forEachIndexed { i, e ->
-        append("\n").append(i + 1).append(". ")
-        append(e.displayTitle)
-        e.year?.let { append(" ($it)") }
-        e.score?.let { append(" — 🐍 ${formatScore(it)}") }
-        if (!e.manual) append("\n   ").append(tmdbUrl(e.type, e.tmdbId))
+    val head = "📁 $title — $n ${plural(n, "фільм|фільми|фільмів", "title|titles", "фильм|фильма|фильмов")}\n"
+    val footer = "\n\n" + tr("Надіслано з Кінотеки 🐍", "Sent from Kinoteka 🐍", "Отправлено из Кинотеки 🐍")
+    val body = StringBuilder()
+    for ((i, e) in entries.withIndex()) {
+        val line = buildString {
+            append("\n").append(i + 1).append(". ").append(e.displayTitle)
+            e.year?.let { append(" ($it)") }
+            e.score?.let { append(" — 🐍 ${formatScore(it)}") }
+            if (!e.manual) append("\n   ").append(tmdbUrl(e.type, e.tmdbId))
+        }
+        val left = n - i
+        val more = "\n" + tr("…і ще $left", "…and $left more", "…и ещё $left")
+        // Оставляем место под «…и ещё N», если это не последняя строка.
+        val reserve = if (i < n - 1) more.length else 0
+        if (head.length + body.length + line.length + reserve + footer.length > maxChars) {
+            body.append(more)
+            break
+        }
+        body.append(line)
     }
-    append("\n\n").append(tr("Надіслано з Кінотеки 🐍", "Sent from Kinoteka 🐍", "Отправлено из Кинотеки 🐍"))
+    return head + body + footer
 }
 
 /** Отправить текст через обычное меню «Поделиться» (Telegram, Viber…). */
@@ -205,7 +218,8 @@ fun ListShareDialog(title: String, entries: List<LibraryEntry>, onDismiss: () ->
                     busy = true
                     scope.launch {
                         runCatching {
-                            shareLayer(context, layer, tr("Моя підбірка «$title» у Кінотеці 🐍", "My collection “$title” on Kinoteka 🐍", "Моя подборка «$title» в Кинотеке 🐍"))
+                            // Подпись — список со ссылками (сколько влезет).
+                            shareLayer(context, layer, listShareText(title, entries, maxChars = CAPTION_LIMIT))
                         }
                         busy = false
                     }
