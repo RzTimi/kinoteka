@@ -37,12 +37,17 @@ data class LibraryEntry(
     val rating: Int? = null,
     val status: WatchStatus? = null,
     val note: String = "",
+    /**
+     * Свой постер: "tmdb:/путь.jpg" (другой постер с TMDB) или
+     * "file:имя.jpg" (картинка из галереи, лежит в files/posters). null = оригинальный.
+     */
+    val customPoster: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
     val type: MediaType get() = MediaType.fromPath(mediaType) ?: MediaType.MOVIE
     val sectionEnum: Section get() = Section.fromName(section) ?: Section.MOVIES
     val key: String get() = mediaKey(type, tmdbId)
-    val isEmpty: Boolean get() = rating == null && status == null && note.isBlank()
+    val isEmpty: Boolean get() = rating == null && status == null && note.isBlank() && customPoster == null
 }
 
 @Serializable

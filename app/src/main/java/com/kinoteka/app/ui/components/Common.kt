@@ -54,7 +54,8 @@ import coil3.compose.AsyncImage
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.library.LibraryEntry
-import com.kinoteka.app.data.tmdb.TmdbImages
+import com.kinoteka.app.data.library.PosterStorage
+import androidx.compose.ui.platform.LocalContext
 import com.kinoteka.app.ui.theme.StarColor
 import java.util.Locale
 
@@ -109,8 +110,17 @@ fun <T> ChipRow(
     }
 }
 
+/** Постер: оригинальный с TMDB или ваш собственный ([custom]), если он задан. */
 @Composable
-fun PosterImage(path: String?, title: String, modifier: Modifier = Modifier, size: String = "w342") {
+fun PosterImage(
+    path: String?,
+    title: String,
+    modifier: Modifier = Modifier,
+    size: String = "w342",
+    custom: String? = null,
+) {
+    val filesDir = LocalContext.current.filesDir
+    val model = remember(path, custom, size) { PosterStorage.model(filesDir, custom, path, size) }
     Box(
         modifier
             .aspectRatio(2f / 3f)
@@ -118,7 +128,7 @@ fun PosterImage(path: String?, title: String, modifier: Modifier = Modifier, siz
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
-        if (path == null) {
+        if (model == null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
                 Icon(Icons.Default.Movie, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
@@ -130,7 +140,7 @@ fun PosterImage(path: String?, title: String, modifier: Modifier = Modifier, siz
             }
         } else {
             AsyncImage(
-                model = TmdbImages.poster(path, size),
+                model = model,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -148,10 +158,11 @@ fun PosterCard(
     myRating: Int?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    customPoster: String? = null,
 ) {
     Column(modifier.clickable(onClick = onClick)) {
         Box {
-            PosterImage(posterPath, title, Modifier.fillMaxWidth())
+            PosterImage(posterPath, title, Modifier.fillMaxWidth(), custom = customPoster)
             if (tmdbRating != null && tmdbRating > 0) {
                 Badge(
                     text = formatRating(tmdbRating),
@@ -204,6 +215,7 @@ fun MediaCardItem(card: MediaCard, onClick: (MediaCard) -> Unit, modifier: Modif
         myRating = my?.rating,
         onClick = { onClick(card) },
         modifier = modifier,
+        customPoster = my?.customPoster,
     )
 }
 

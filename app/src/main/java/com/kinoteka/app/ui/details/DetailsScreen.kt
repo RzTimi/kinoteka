@@ -73,6 +73,10 @@ import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.friendlyMessage
 import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.LibraryStore
+import com.kinoteka.app.data.library.PosterStorage
+import com.kinoteka.app.data.tmdb.ImageInfo
+import android.graphics.Bitmap
+import android.graphics.Rect
 import com.kinoteka.app.data.library.WatchStatus
 import com.kinoteka.app.data.mediaKey
 import com.kinoteka.app.data.tmdb.CastMember
@@ -96,9 +100,38 @@ import kotlinx.coroutines.launch
 class DetailsViewModel(
     private val repo: MediaRepository,
     private val library: LibraryStore,
+    private val posterStorage: PosterStorage,
     val type: MediaType,
     val id: Int,
 ) : ViewModel() {
+    private val _altPosters = MutableStateFlow<UiState<List<ImageInfo>>>(UiState.Loading)
+    /** Другие постеры с TMDB (грузятся при первом открытии выбора). */
+    val altPosters = _altPosters.asStateFlow()
+    private var altPostersRequested = false
+
+    fun loadAltPosters(force: Boolean = false) {
+        if (altPostersRequested && !force) return
+        altPostersRequested = true
+        _altPosters.value = UiState.Loading
+        viewModelScope.launch {
+            _altPosters.value = runCatching { repo.posters(type, id) }
+                .fold({ UiState.Success(it) }, { UiState.Error(it.friendlyMessage()) })
+        }
+    }
+
+    private fun setPoster(ref: String?) {
+        val old = library.entries.value[key]?.customPoster
+        edit { it.copy(customPoster = ref) }
+        if (old != ref) posterStorage.deleteIfLocal(old)
+    }
+
+    fun useTmdbPoster(path: String) = setPoster(PosterStorage.TMDB_PREFIX + path)
+    fun resetPoster() = setPoster(null)
+
+    fun saveGalleryPoster(bitmap: Bitmap, rect: Rect) {
+        viewModelScope.launch { setPoster(posterStorage.saveCropped(bitmap, rect, key)) }
+    }
+
     private val _state = MutableStateFlow<UiState<TmdbDetails>>(UiState.Loading)
     val state = _state.asStateFlow()
     val key = mediaKey(type, id)
@@ -149,7 +182,9 @@ fun TmdbDetails.year(): String? = (releaseDate ?: firstAirDate)?.take(4)?.takeIf
 fun DetailsScreen(route: DetailsRoute, onBack: () -> Unit) {
     val container = LocalContainer.current
     val type = MediaType.fromPath(route.type) ?: MediaType.MOVIE
-    val vm: DetailsViewModel = viewModel { DetailsViewModel(container.repository, container.library, type, route.id) }
+    val vm: DetailsViewModel = viewModel {
+        DetailsViewModel(container.repository, container.library, container.posters, type, route.id)
+    }
     val state by vm.state.collectAsStateWithLifecycle()
     val entry = LocalLibrary.current[vm.key]
 
@@ -180,6 +215,16 @@ private fun DetailsContent(d: TmdbDetails, type: MediaType, entry: LibraryEntry?
     val title = d.displayTitle(type)
     val original = (d.originalTitle ?: d.originalName)?.takeIf { it != title }
     val section = Section.classify(type, d.genres.map { it.id }, d.originalLanguage)
+    var posterMenu by remember { mutableStateOf(false) }
+
+    PosterEditor(
+        open = posterMenu,
+        onClose = { posterMenu = false },
+        vm = vm,
+        title = title,
+        originalPoster = d.posterPath,
+        customPoster = entry?.customPoster,
+    )
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         // Шапка: фон + постер + название
@@ -208,7 +253,17 @@ private fun DetailsContent(d: TmdbDetails, type: MediaType, entry: LibraryEntry?
                     Modifier.padding(top = backdropHeight - 80.dp, start = 16.dp, end = 16.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    PosterImage(d.posterPath, title, Modifier.width(118.dp), size = "w500")
+                    // Нажатие на постер: сменить на свой.
+                    Box(Modifier.width(118.dp).clip(RoundedCornerShape(10.dp)).clickable { posterMenu = true }) {
+                        PosterImage(d.posterPath, title, Modifier.fillMaxWidth(), size = "w500", custom = entry?.customPoster)
+                        Box(
+                            Modifier.align(Alignment.BottomEnd).padding(6.dp).size(30.dp)
+                                .clip(CircleShape).background(Color.Black.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Default.Edit, "Змінити постер", tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f).offset(y = (-4).dp)) {
                         Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)

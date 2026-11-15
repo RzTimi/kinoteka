@@ -1,6 +1,7 @@
 package com.kinoteka.app.data
 
 import com.kinoteka.app.data.tmdb.Genre
+import com.kinoteka.app.data.tmdb.ImageInfo
 import com.kinoteka.app.data.tmdb.TmdbApi
 import com.kinoteka.app.data.tmdb.TmdbDetails
 import com.kinoteka.app.data.tmdb.TmdbItem
@@ -90,6 +91,15 @@ class MediaRepository(private val api: TmdbApi) {
         val titled = withReadableTitles(media, typeOf) { api.searchMulti(query, page, language = "en-US").results }
         return PageResult(titled.map { it.toCard(typeOf(it)) }, response.page, response.totalPages)
     }
+
+    /** Альтернативные постеры: сначала украинские, потом без текста, потом английские. */
+    suspend fun posters(type: MediaType, id: Int): List<ImageInfo> =
+        api.images(type.path, id).posters
+            .filter { it.filePath.isNotBlank() }
+            .sortedWith(
+                compareBy<ImageInfo>({ when (it.language) { "uk" -> 0; null -> 1; "en" -> 2; else -> 3 } })
+                    .thenByDescending { it.voteAverage }
+            )
 
     suspend fun details(type: MediaType, id: Int): TmdbDetails {
         val uk = api.details(type.path, id)

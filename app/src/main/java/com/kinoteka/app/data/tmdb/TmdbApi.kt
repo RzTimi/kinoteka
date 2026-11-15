@@ -39,6 +39,14 @@ interface TmdbApi {
         @Query("language") language: String? = null,
     ): TmdbDetails
 
+    /** Все постеры фильма/сериала: украинские, английские и без текста. */
+    @GET("{type}/{id}/images")
+    suspend fun images(
+        @Path("type") type: String,
+        @Path("id") id: Int,
+        @Query("include_image_language") languages: String = "uk,en,null",
+    ): ImagesResponse
+
     companion object {
         const val LANGUAGE = "uk-UA"
         const val REGION = "UA"

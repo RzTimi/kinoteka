@@ -3,6 +3,7 @@ package com.kinoteka.app
 import android.app.Application
 import com.kinoteka.app.data.MediaRepository
 import com.kinoteka.app.data.library.LibraryStore
+import com.kinoteka.app.data.library.PosterStorage
 import com.kinoteka.app.data.tmdb.TmdbApi
 import okhttp3.OkHttpClient
 
@@ -22,4 +23,5 @@ class AppContainer(app: Application) {
     private val http = OkHttpClient()
     val repository = MediaRepository(TmdbApi.create(BuildConfig.TMDB_API_KEY, http))
     val library = LibraryStore(app)
+    val posters = PosterStorage(app)
 }

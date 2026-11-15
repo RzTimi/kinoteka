@@ -139,6 +139,7 @@ fun LibraryScreen(onItem: (LibraryEntry) -> Unit) {
                         tmdbRating = null,
                         myRating = e.rating,
                         onClick = { onItem(e) },
+                        customPoster = e.customPoster,
                     )
                 }
             }

@@ -102,6 +102,18 @@ data class Video(
 )
 
 @Serializable
+data class ImagesResponse(val posters: List<ImageInfo> = emptyList())
+
+@Serializable
+data class ImageInfo(
+    @SerialName("file_path") val filePath: String = "",
+    @SerialName("iso_639_1") val language: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0,
+    val width: Int = 0,
+    val height: Int = 0,
+)
+
+@Serializable
 data class WatchProvidersResponse(val results: Map<String, CountryProviders> = emptyMap())
 
 @Serializable

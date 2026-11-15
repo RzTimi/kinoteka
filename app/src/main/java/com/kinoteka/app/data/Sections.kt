@@ -74,6 +74,9 @@ enum class Section(val title: String, val types: List<MediaType>) {
             CARTOONS, DOCS -> 15
         }
         val popular = mapOf("sort_by" to "popularity.desc", "vote_count.gte" to minVotes.toString())
+        // У новинок голосов ещё мало, а у будущих премьер их нет совсем.
+        val fresh = mapOf("sort_by" to "popularity.desc", "vote_count.gte" to "3")
+        val upcoming = mapOf("sort_by" to "popularity.desc")
         return when (this) {
             MOVIES -> listOf(
                 Feed("Популярне", MediaType.MOVIE, popular),
@@ -84,7 +87,7 @@ enum class Section(val title: String, val types: List<MediaType>) {
                     )
                 ),
                 Feed(
-                    "Скоро", MediaType.MOVIE, popular + mapOf(
+                    "Скоро", MediaType.MOVIE, upcoming + mapOf(
                         "primary_release_date.gte" to today.plusDays(1).toString(),
                         "primary_release_date.lte" to today.plusDays(150).toString(),
                     )
@@ -104,7 +107,7 @@ enum class Section(val title: String, val types: List<MediaType>) {
                 )
                 add(
                     Feed(
-                        "Новинки", MediaType.TV, popular + mapOf(
+                        "Новинки", MediaType.TV, fresh + mapOf(
                             "first_air_date.gte" to today.minusDays(180).toString(),
                             "first_air_date.lte" to today.toString(),
                         )
@@ -120,13 +123,13 @@ enum class Section(val title: String, val types: List<MediaType>) {
                 Feed("Популярні серіали", MediaType.TV, popular),
                 Feed("Популярні фільми", MediaType.MOVIE, popular),
                 Feed(
-                    "Нові серіали", MediaType.TV, popular + mapOf(
+                    "Нові серіали", MediaType.TV, fresh + mapOf(
                         "first_air_date.gte" to today.minusDays(180).toString(),
                         "first_air_date.lte" to today.toString(),
                     )
                 ),
                 Feed(
-                    "Нові фільми", MediaType.MOVIE, popular + mapOf(
+                    "Нові фільми", MediaType.MOVIE, fresh + mapOf(
                         "primary_release_date.gte" to today.minusDays(240).toString(),
                         "primary_release_date.lte" to today.toString(),
                     )
