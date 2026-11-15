@@ -14,6 +14,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.SyncProblem
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kinoteka.app.ui.LocalContainer
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,8 +75,9 @@ private enum class LibrarySort(val label: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onItem: (LibraryEntry) -> Unit) {
+fun LibraryScreen(onItem: (LibraryEntry) -> Unit, onAccount: () -> Unit) {
     val all = LocalLibrary.current.values.toList()
+    val syncState by LocalContainer.current.sync.state.collectAsStateWithLifecycle()
     var sectionName by rememberSaveable { mutableStateOf<String?>(null) }
     var filter by rememberSaveable { mutableStateOf(LibraryFilter.ALL) }
     var sort by rememberSaveable { mutableStateOf(LibrarySort.RECENT) }
@@ -91,6 +99,15 @@ fun LibraryScreen(onItem: (LibraryEntry) -> Unit) {
                 TopAppBar(
                     title = { Text("Мої оцінки", fontWeight = FontWeight.Bold) },
                     actions = {
+                        // Облако: вход в Google / состояние синхронизации.
+                        IconButton(onClick = onAccount) {
+                            when {
+                                syncState.syncing -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                syncState.signedIn && syncState.error == null -> Icon(Icons.Default.CloudDone, "Синхронізовано з Google Диском")
+                                syncState.signedIn -> Icon(Icons.Default.SyncProblem, "Помилка синхронізації", tint = MaterialTheme.colorScheme.error)
+                                else -> Icon(Icons.Default.CloudOff, "Увійти через Google")
+                            }
+                        }
                         Box {
                             IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, "Сортування") }
                             DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {

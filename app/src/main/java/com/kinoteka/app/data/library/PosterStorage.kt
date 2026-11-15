@@ -60,6 +60,14 @@ class PosterStorage(context: Context) {
         "$FILE_PREFIX$name"
     }
 
+    /** Файл постера по имени (без префикса "file:"). */
+    fun localFile(name: String): File = File(dir, name)
+
+    /** Сохранить постер, скачанный с Google Диска. */
+    suspend fun writeDownloaded(name: String, bytes: ByteArray) = withContext(Dispatchers.IO) {
+        File(dir, name).writeBytes(bytes)
+    }
+
     /** Удалить файл, если это постер из галереи. */
     fun deleteIfLocal(ref: String?) {
         if (ref != null && ref.startsWith(FILE_PREFIX)) File(dir, ref.removePrefix(FILE_PREFIX)).delete()

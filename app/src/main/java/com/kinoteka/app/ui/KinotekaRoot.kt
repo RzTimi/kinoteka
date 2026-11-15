@@ -45,6 +45,10 @@ import com.kinoteka.app.AppContainer
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.ui.about.AboutScreen
+import com.kinoteka.app.ui.account.AccountScreen
+import com.kinoteka.app.ui.account.WelcomeSyncDialog
+import com.kinoteka.app.ui.account.rememberGoogleSignIn
+import androidx.compose.runtime.remember
 import com.kinoteka.app.ui.browse.BrowseScreen
 import com.kinoteka.app.ui.components.LocalLibrary
 import com.kinoteka.app.ui.details.DetailsScreen
@@ -95,6 +99,17 @@ private fun AppScaffold() {
 
     val openDetails: (MediaCard) -> Unit = { nav.navigate(DetailsRoute(it.type.path, it.id)) }
 
+    // Первый запуск: предложить хранить оценки на Google Диске (один раз).
+    val sync = LocalContainer.current.sync
+    var showWelcome by remember { mutableStateOf(!sync.welcomeShown && !sync.state.value.signedIn) }
+    val signIn = rememberGoogleSignIn(sync)
+    if (showWelcome) {
+        WelcomeSyncDialog(
+            onSignIn = { sync.welcomeShown = true; showWelcome = false; signIn() },
+            onLater = { sync.welcomeShown = true; showWelcome = false },
+        )
+    }
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -132,7 +147,10 @@ private fun AppScaffold() {
                     onAbout = { nav.navigate(AboutRoute) },
                 )
             }
-            composable<AboutRoute> { AboutScreen(onBack = { nav.popBackStack() }) }
+            composable<AboutRoute> {
+                AboutScreen(onBack = { nav.popBackStack() }, onAccount = { nav.navigate(AccountRoute) })
+            }
+            composable<AccountRoute> { AccountScreen(onBack = { nav.popBackStack() }) }
             composable<GenresRoute> {
                 GenresScreen(
                     section = section,
@@ -144,7 +162,10 @@ private fun AppScaffold() {
             }
             composable<SearchRoute> { SearchScreen(onItem = openDetails) }
             composable<LibraryRoute> {
-                LibraryScreen(onItem = { entry -> nav.navigate(DetailsRoute(entry.mediaType, entry.tmdbId)) })
+                LibraryScreen(
+                    onItem = { entry -> nav.navigate(DetailsRoute(entry.mediaType, entry.tmdbId)) },
+                    onAccount = { nav.navigate(AccountRoute) },
+                )
             }
             composable<BrowseRoute> { entry ->
                 val route = entry.toRoute<BrowseRoute>()

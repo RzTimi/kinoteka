@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 @Serializable data object SearchRoute
 @Serializable data object LibraryRoute
 @Serializable data object AboutRoute
+@Serializable data object AccountRoute
 
 /** Список фильмов раздела: «Усі» из ленты главной или жанр. */
 @Serializable

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Tv
@@ -58,7 +59,7 @@ private const val GITHUB_URL = "https://github.com/RzTimi/kinoteka"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onAccount: () -> Unit) {
     val uri = LocalUriHandler.current
     val library = LocalLibrary.current.values
     val rated = library.count { it.rating != null }
@@ -110,6 +111,8 @@ fun AboutScreen(onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 36.dp),
                     )
+                    HorizontalDivider()
+                    LinkRow(Icons.Default.CloudSync, "Синхронізація з Google Диском", "Резервна копія та доступ з інших телефонів", onAccount)
                 }
 
                 // Источники данных (обязательная атрибуция TMDB и JustWatch)

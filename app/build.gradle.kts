@@ -66,4 +66,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     implementation(libs.youtube.player)
+
+    implementation(libs.play.services.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
 }
