@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.filled.ShortText
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +69,8 @@ fun ShareCardDialog(
     posterModel: String?,
     rating: Double?,
     note: String?,
+    /** Тот же фильм текстом со ссылкой — для кнопки «Текстом». */
+    shareText: String? = null,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -131,39 +135,23 @@ fun ShareCardDialog(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = onDismiss) { Text(tr("Закрити", "Close", "Закрыть"), color = Color.White) }
-                Button(
-                    enabled = !busy,
-                    onClick = {
-                        busy = true
-                        scope.launch {
-                            runCatching {
-                                val bitmap = layer.toImageBitmap().asAndroidBitmap()
-                                val file = withContext(Dispatchers.IO) {
-                                    val dir = File(context.cacheDir, "share").apply { mkdirs() }
-                                    File(dir, "kinoteka_share.png").also { f ->
-                                        FileOutputStream(f).use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-                                    }
-                                }
-                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "image/png"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    putExtra(Intent.EXTRA_TEXT, tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"))
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(send, tr("Поділитися", "Share", "Поделиться")))
-                            }
-                            busy = false
+            com.kinoteka.app.ui.share.ShareButtons(
+                onText = shareText?.let { t -> { com.kinoteka.app.ui.share.shareText(context, t) } },
+                onImage = {
+                    busy = true
+                    scope.launch {
+                        runCatching {
+                            com.kinoteka.app.ui.share.shareLayer(
+                                context, layer,
+                                tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"),
+                            )
                         }
-                    },
-                ) {
-                    Icon(Icons.Default.Share, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(tr("Надіслати", "Send", "Отправить"))
-                }
-            }
+                        busy = false
+                    }
+                },
+                imageEnabled = !busy,
+                onClose = onDismiss,
+            )
         }
     }
 }

@@ -21,6 +21,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.clickable
@@ -63,6 +66,7 @@ import com.kinoteka.app.ui.components.LocalLibrary
 import com.kinoteka.app.ui.components.PosterCard
 import com.kinoteka.app.ui.components.SectionChips
 import com.kinoteka.app.i18n.tr
+import com.kinoteka.app.ui.share.ListShareDialog
 import java.util.Locale
 
 private enum class LibraryFilter(private val uk: String, private val en: String, private val ru: String) {
@@ -129,6 +133,7 @@ fun LibraryScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var collection by rememberSaveable { mutableStateOf<String?>(null) }
     var genre by rememberSaveable { mutableStateOf<String?>(null) }
+    var shareList by remember { mutableStateOf(false) }
     val section = Section.fromName(sectionName)
 
     val bySection = all.filter { section == null || it.sectionEnum == section }
@@ -199,6 +204,12 @@ fun LibraryScreen(
                             IconButton(onClick = { moreMenu = true }) { Icon(Icons.Default.MoreVert, tr("Ще", "More", "Ещё")) }
                             DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                                 DropdownMenuItem(
+                                    text = { Text(tr("Поділитися цим списком", "Share this list", "Поделиться этим списком")) },
+                                    leadingIcon = { Icon(Icons.Default.Share, null) },
+                                    enabled = visible.isNotEmpty(),
+                                    onClick = { moreMenu = false; shareList = true },
+                                )
+                                DropdownMenuItem(
                                     text = { Text(tr("Статистика і змійка", "Stats and snake", "Статистика и змейка")) },
                                     leadingIcon = { Icon(Icons.Default.BarChart, null) },
                                     onClick = { moreMenu = false; onStats() },
@@ -224,6 +235,14 @@ fun LibraryScreen(
                     Spacer(Modifier.height(4.dp))
                     val options: List<String?> = listOf<String?>(null) + collections.entries.sortedBy { it.value }.map { it.key }
                     ChipRow(options, collection, { it?.let { n -> "📁 $n" } ?: tr("Усі підбірки", "All collections", "Все подборки") }, { collection = it })
+                    // Выбрана подборка — её можно сразу отправить.
+                    if (collection != null && visible.isNotEmpty()) {
+                        TextButton(onClick = { shareList = true }, modifier = Modifier.padding(start = 8.dp)) {
+                            Icon(Icons.Default.Share, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(tr("Поділитися підбіркою «$collection»", "Share collection “$collection”", "Поделиться подборкой «$collection»"))
+                        }
+                    }
                 }
                 if (genresInLibrary.size > 1) {
                     Spacer(Modifier.height(4.dp))
@@ -251,6 +270,15 @@ fun LibraryScreen(
         },
     ) { padding ->
         val modifier = Modifier.fillMaxSize().padding(padding)
+        if (shareList) {
+            // Название списка: подборка, иначе раздел и фильтр.
+            val listTitle = collection ?: listOfNotNull(
+                section?.title,
+                filter.takeIf { it != LibraryFilter.ALL }?.label,
+                genre,
+            ).joinToString(" · ").ifEmpty { tr("Мої оцінки", "My ratings", "Мои оценки") }
+            ListShareDialog(title = listTitle, entries = visible, onDismiss = { shareList = false })
+        }
         if (visible.isEmpty()) {
             EmptyBox(
                 if (all.isEmpty()) tr(
