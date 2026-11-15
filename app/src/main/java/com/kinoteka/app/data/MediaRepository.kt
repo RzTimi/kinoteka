@@ -164,6 +164,13 @@ class MediaRepository(
 
     /** Одна страница discover для раздела, с фильтром по разделу на нашей стороне. */
     suspend fun discover(section: Section, type: MediaType, extra: Map<String, String>, page: Int): PageResult {
+        // «В тренде» — отдельный список TMDB, не discover.
+        extra[Feed.TRENDING]?.let { window ->
+            val response = api.trending(type.path, window, page)
+            val filtered = response.results.filter { section.accepts(it, type) }
+            val titled = withReadableTitles(filtered, { type }) { api.trending(type.path, window, page, language = "en-US").results }
+            return PageResult(titled.map { it.toCard(type) }, response.page, minOf(response.totalPages, 500))
+        }
         // Явно выбранный «исключаемый» жанр (мультфильм в сериалах и т.п.) снимает исключение раздела.
         val chosen = extra["with_genres"].orEmpty().split(',', '|').mapNotNull { it.trim().toIntOrNull() }
         val overrides = chosen.filter { it in TmdbGenres.overriding }.toSet()

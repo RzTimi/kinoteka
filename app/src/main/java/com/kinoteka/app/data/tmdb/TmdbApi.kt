@@ -21,6 +21,15 @@ interface TmdbApi {
         @QueryMap params: Map<String, String>,
     ): PagedResponse<TmdbItem>
 
+    /** В тренде: что смотрят прямо сейчас (window = day / week). */
+    @GET("trending/{type}/{window}")
+    suspend fun trending(
+        @Path("type") type: String,
+        @Path("window") window: String,
+        @Query("page") page: Int,
+        @Query("language") language: String? = null,
+    ): PagedResponse<TmdbItem>
+
     @GET("genre/{type}/list")
     suspend fun genres(@Path("type") type: String): GenreListResponse
 

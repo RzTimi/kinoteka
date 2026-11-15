@@ -1,5 +1,6 @@
 package com.kinoteka.app.data
 
+import com.kinoteka.app.data.tmdb.TmdbApi
 import com.kinoteka.app.data.tmdb.TmdbItem
 import com.kinoteka.app.i18n.tr
 import java.time.LocalDate
@@ -142,12 +143,32 @@ enum class Section(
         // У новинок голосов ещё мало, а у будущих премьер их нет совсем.
         val fresh = mapOf("sort_by" to "popularity.desc", "vote_count.gte" to "3")
         val upcoming = mapOf("sort_by" to "popularity.desc")
+        val trending = mapOf(Feed.TRENDING to "week")
+        // Стриминги в Украине (данные JustWatch через TMDB): подписка / бесплатно и с рекламой.
+        val streaming = mapOf("watch_region" to TmdbApi.REGION, "with_watch_monetization_types" to "flatrate")
+        val free = popular + mapOf("watch_region" to TmdbApi.REGION, "with_watch_monetization_types" to "free|ads")
+        // Высокий рейтинг, но мало голосов — мало кто видел.
+        // Только то, что вышло 2+ года назад: у свежих премьер голосов мало просто потому, что они новые.
+        fun gems(type: MediaType) = mapOf(
+            "sort_by" to "popularity.desc",
+            "vote_average.gte" to "7.3",
+            "vote_count.gte" to (minVotes * 3).toString(),
+            "vote_count.lte" to (minVotes * 30).toString(),
+            (if (type == MediaType.MOVIE) "primary_release_date.lte" else "first_air_date.lte") to today.minusYears(2).toString(),
+        )
         return when (this) {
             MOVIES -> listOf(
+                Feed(tr("У тренді цього тижня", "Trending this week", "В тренде на этой неделе"), MediaType.MOVIE, trending),
                 Feed(tr("Популярне", "Popular", "Популярное"), MediaType.MOVIE, popular),
                 Feed(
                     tr("Зараз у кіно", "Now in theaters", "Сейчас в кино"), MediaType.MOVIE, popular + mapOf(
                         "primary_release_date.gte" to today.minusDays(45).toString(),
+                        "primary_release_date.lte" to today.toString(),
+                    )
+                ),
+                Feed(
+                    tr("Нове на стрімінгах", "New on streaming", "Новое на стримингах"), MediaType.MOVIE, fresh + streaming + mapOf(
+                        "primary_release_date.gte" to today.minusDays(240).toString(),
                         "primary_release_date.lte" to today.toString(),
                     )
                 ),
@@ -157,10 +178,21 @@ enum class Section(
                         "primary_release_date.lte" to today.plusDays(150).toString(),
                     )
                 ),
+                Feed(tr("Безкоштовно", "Free to watch", "Бесплатно"), MediaType.MOVIE, free),
+                Feed(tr("Приховані перлини", "Hidden gems", "Скрытые жемчужины"), MediaType.MOVIE, gems(MediaType.MOVIE)),
+                Feed(
+                    tr("Короткі, до 1,5 години", "Short, under 1.5 hours", "Короткие, до 1,5 часа"), MediaType.MOVIE, popular + mapOf(
+                        "with_runtime.gte" to "60",
+                        "with_runtime.lte" to "90",
+                    )
+                ),
+                Feed(tr("Хіти 90-х", "Hits of the 90s", "Хиты 90-х"), MediaType.MOVIE, hits(1990)),
+                Feed(tr("Хіти 2000-х", "Hits of the 2000s", "Хиты 2000-х"), MediaType.MOVIE, hits(2000)),
                 Feed(tr("Найкращі за весь час", "All-time best", "Лучшие за всё время"), MediaType.MOVIE, topRated(2000)),
             )
 
             SERIES, DORAMAS -> buildList {
+                add(Feed(tr("У тренді цього тижня", "Trending this week", "В тренде на этой неделе"), MediaType.TV, trending))
                 add(Feed(tr("Популярне", "Popular", "Популярное"), MediaType.TV, popular))
                 add(
                     Feed(
@@ -178,9 +210,21 @@ enum class Section(
                         )
                     )
                 )
+                if (this@Section == SERIES) {
+                    add(
+                        Feed(
+                            tr("Нове на стрімінгах", "New on streaming", "Новое на стримингах"), MediaType.TV, fresh + streaming + mapOf(
+                                "first_air_date.gte" to today.minusDays(365).toString(),
+                                "first_air_date.lte" to today.toString(),
+                            )
+                        )
+                    )
+                    add(Feed(tr("Безкоштовно", "Free to watch", "Бесплатно"), MediaType.TV, free))
+                }
                 countries.forEach { (code, name) ->
                     add(Feed(name, MediaType.TV, popular + mapOf("with_origin_country" to code)))
                 }
+                add(Feed(tr("Приховані перлини", "Hidden gems", "Скрытые жемчужины"), MediaType.TV, gems(MediaType.TV)))
                 add(Feed(tr("Найкращі за весь час", "All-time best", "Лучшие за всё время"), MediaType.TV, topRated(if (this@Section == DORAMAS) 150 else 500)))
             }
 
@@ -296,6 +340,13 @@ enum class Section(
             "primary_release_date.lte" to "${start + 9}-12-31",
         )
 
+        /** Хиты десятилетия: самые обсуждаемые (больше всего оценок). */
+        private fun hits(start: Int) = mapOf(
+            "sort_by" to "vote_count.desc",
+            "primary_release_date.gte" to "$start-01-01",
+            "primary_release_date.lte" to "${start + 9}-12-31",
+        )
+
         private fun topRated(minVotes: Int) = mapOf(
             "sort_by" to "vote_average.desc",
             "vote_count.gte" to minVotes.toString(),
@@ -304,7 +355,12 @@ enum class Section(
 }
 
 /** Одна лента на главной: заголовок + параметры запроса. */
-data class Feed(val title: String, val type: MediaType, val params: Map<String, String>)
+data class Feed(val title: String, val type: MediaType, val params: Map<String, String>) {
+    companion object {
+        /** Особый параметр: вместо discover берём список «в тренде» (значение — day / week). */
+        const val TRENDING = "_trending"
+    }
+}
 
 /** Варианты сортировки на экране жанра. */
 enum class SortOption(private val uk: String, private val en: String, private val ru: String) {
