@@ -50,6 +50,7 @@ import com.kinoteka.app.ui.account.AccountScreen
 import com.kinoteka.app.ui.account.WelcomeSyncDialog
 import com.kinoteka.app.ui.account.rememberGoogleSignIn
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.kinoteka.app.ui.browse.BrowseScreen
@@ -112,6 +113,13 @@ private fun AppScaffold() {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
+    // Вкладка, в которой сейчас находимся. Экраны поверх (настройки, карточка фильма…)
+    // считаются частью той вкладки, из которой их открыли.
+    var currentTabName by rememberSaveable { mutableStateOf(tabs.first().label) }
+    LaunchedEffect(destination) {
+        tabs.firstOrNull { tab -> destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true }
+            ?.let { currentTabName = it.label }
+    }
     // Выбранный раздел общий для Главной, Жанров и т.д.
     var sectionName by rememberSaveable { mutableStateOf<String?>(null) }
     // Если выбранный раздел скрыли в настройках — берём первый видимый.
@@ -136,14 +144,22 @@ private fun AppScaffold() {
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->
-                    val selected = destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true
+                    val selected = tab.label == currentTabName
                     NavigationBarItem(
                         selected = selected,
                         onClick = {
-                            nav.navigate(tab.route) {
-                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (selected) {
+                                // Уже в этой вкладке: закрываем всё, что открыто поверх, и показываем саму вкладку.
+                                if (!nav.popBackStack(tab.route, inclusive = false)) {
+                                    nav.navigate(tab.route) { launchSingleTop = true }
+                                }
+                            } else {
+                                currentTabName = tab.label
+                                nav.navigate(tab.route) {
+                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         icon = { Icon(if (selected) tab.selectedIcon else tab.icon, null) },
