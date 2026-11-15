@@ -30,6 +30,10 @@ data class MediaCard(
     val year: String?,
     val rating: Double,
     val section: Section,
+    /** Для фильтров и сортировки в поиске. */
+    val genreIds: List<Int> = emptyList(),
+    val popularity: Double = 0.0,
+    val voteCount: Int = 0,
 ) {
     val key: String get() = mediaKey(type, id)
 }
@@ -241,6 +245,25 @@ class MediaRepository(
 
     private fun String.capitalized() = replaceFirstChar { it.uppercase() }
 
+    /** Жанры TMDB (для фильтров поиска). */
+    suspend fun tmdbGenres(type: MediaType): List<Genre> = genreMutex.withLock {
+        genreCache[type] ?: api.genres(type.path).genres.also { genreCache[type] = it }
+    }
+
+    /** Discover без привязки к разделу — подбор по фильтрам во «Всех». */
+    suspend fun discoverAny(type: MediaType, params: Map<String, String>, page: Int): PageResult {
+        val p = params + ("page" to page.toString())
+        val response = api.discover(type.path, p)
+        val titled = withReadableTitles(response.results, { type }) { api.discover(type.path, p + ("language" to "en-US")).results }
+        return PageResult(titled.map { it.toCard(type) }, response.page, minOf(response.totalPages, 500))
+    }
+
+    /** Длительность в минутах: у фильма — весь фильм, у сериала — серия. */
+    suspend fun runtimeOf(type: MediaType, id: Int): Int? = runCatching {
+        val d = detailsLite(type, id)
+        d.runtime?.takeIf { it > 0 } ?: d.episodeRunTime.firstOrNull { it > 0 }
+    }.getOrNull()
+
     suspend fun search(query: String, page: Int): PageResult {
         val response = api.searchMulti(query, page)
         val media = response.results.filter { MediaType.fromPath(it.mediaType) != null }
@@ -328,6 +351,9 @@ fun TmdbItem.toCard(type: MediaType) = MediaCard(
     year = (releaseDate ?: firstAirDate)?.take(4)?.takeIf { it.isNotBlank() },
     rating = voteAverage,
     section = Section.classify(this, type),
+    genreIds = genreIds,
+    popularity = popularity,
+    voteCount = voteCount,
 )
 
 fun Throwable.friendlyMessage(): String = when (this) {
