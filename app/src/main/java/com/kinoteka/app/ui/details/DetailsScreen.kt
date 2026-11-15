@@ -322,6 +322,15 @@ private fun DetailsContent(d: TmdbDetails, type: MediaType, entry: LibraryEntry?
                 SectionTitle("Де подивитись в Україні")
                 if (stream.isNotEmpty()) ProviderRow("За підпискою / безкоштовно", stream) { providers.link?.let(uri::openUri) }
                 if (buy.isNotEmpty()) ProviderRow("Оренда / купівля", buy) { providers.link?.let(uri::openUri) }
+                // TMDB требует указывать JustWatch как источник этих данных.
+                Text(
+                    "Дані: JustWatch",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clickable { uri.openUri("https://www.justwatch.com/") },
+                )
             }
         }
 

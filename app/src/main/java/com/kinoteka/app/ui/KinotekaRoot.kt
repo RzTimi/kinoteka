@@ -44,6 +44,7 @@ import androidx.navigation.toRoute
 import com.kinoteka.app.AppContainer
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
+import com.kinoteka.app.ui.about.AboutScreen
 import com.kinoteka.app.ui.browse.BrowseScreen
 import com.kinoteka.app.ui.components.LocalLibrary
 import com.kinoteka.app.ui.details.DetailsScreen
@@ -128,8 +129,10 @@ private fun AppScaffold() {
                     onMore = { feed ->
                         nav.navigate(BrowseRoute(section.name, feed.type.path, feed.title, RouteParams.encode(feed.params)))
                     },
+                    onAbout = { nav.navigate(AboutRoute) },
                 )
             }
+            composable<AboutRoute> { AboutScreen(onBack = { nav.popBackStack() }) }
             composable<GenresRoute> {
                 GenresScreen(
                     section = section,
