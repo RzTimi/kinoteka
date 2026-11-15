@@ -24,15 +24,23 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.PI
 import kotlin.math.sin
 
-private val SnakeGreen = Color(0xFF43A047)
-private val SnakeDark = Color(0xFF2E7D32)
-private val SnakeBelly = Color(0xFFA5D6A7)
-private val SnakeSpot = Color(0xFF1B5E20)
+// Палитра змейки
+private val Outline = Color(0xFF1F5F24)
+private val Body = Color(0xFF4CAF50)
+private val BodyLight = Color(0xFF8BD48F)
+/** Непрозрачный блик (смесь Body и BodyLight), чтобы кружки не накладывались пятнами. */
+private val BodyHighlight = Color(0xFF6CC270)
+private val Belly = Color(0xFFD4E99A)
+private val Diamond = Color(0xFF2E7D32)
+private val DiamondCenter = Color(0xFFB9E07C)
+private val Blush = Color(0xFFFF8A80)
 private val Tongue = Color(0xFFE53935)
+private val Shadow = Color(0x22000000)
 
 private const val SLOTS = 10
 /** Запас справа (в долях деления), чтобы язык не упирался в край. */
-private const val RIGHT_SPACE = 0.45f
+private const val RIGHT_SPACE = 0.5f
+private const val STEPS = 14
 
 /**
  * Оценка-змейка: 10 делений, змейка растёт до выбранной оценки, голова — на конце.
@@ -46,7 +54,7 @@ fun SnakeRating(rating: Int?, onRate: (Int) -> Unit, onClear: () -> Unit, modifi
     Canvas(
         modifier
             .fillMaxWidth()
-            .height(60.dp)
+            .height(68.dp)
             .semantics { contentDescription = rating?.let { "Моя оцінка: $it з 10" } ?: "Оцінка не поставлена" }
             .pointerInput(Unit) {
                 detectTapGestures { pos ->
@@ -62,34 +70,51 @@ fun SnakeRating(rating: Int?, onRate: (Int) -> Unit, onClear: () -> Unit, modifi
             }
     ) {
         val slotW = size.width / (SLOTS + RIGHT_SPACE)
-        val centers = (1..SLOTS).map { i -> Offset(slotW * (i - 0.5f), size.height / 2 + waveY(i, size.height)) }
+        val centers = (1..SLOTS).map { i -> Offset(slotW * (i - 0.5f), size.height * 0.46f + waveY(i, size.height)) }
 
         // Призрачные точки: показывают, куда змейка может вырасти.
         for (i in 1..SLOTS) {
             if (rating == null || i > rating) drawCircle(ghost, radius = slotW * 0.13f, center = centers[i - 1])
         }
         if (rating == null) {
-            drawHead(centers[0], slotW, ghost, faded = true)
+            drawSleepingHead(centers[0], slotW, ghost)
             return@Canvas
         }
 
         val n = rating
+        val head = centers[n - 1]
         if (n >= 2) {
-            // Тело — плавная кривая через центры делений, утолщается от хвоста к голове.
-            val samples = sampleSpline(centers.subList(0, n), stepsPerSegment = 14)
-            val maxR = slotW * 0.27f
-            val minR = slotW * 0.09f
-            val radii = samples.indices.map { k -> minR + (maxR - minR) * (k.toFloat() / (samples.size - 1)) }
-            val outline = 1.6.dp.toPx()
-            samples.forEachIndexed { k, p -> drawCircle(SnakeDark, radii[k] + outline, p) }
-            samples.forEachIndexed { k, p -> drawCircle(SnakeGreen, radii[k], p) }
-            // Пятнышки на спине — по одному на деление.
-            for (i in 1 until n) {
-                val k = ((i - 1) * 14).coerceAtMost(samples.size - 1)
-                drawCircle(SnakeSpot.copy(alpha = 0.5f), radii[k] * 0.38f, samples[k] - Offset(0f, radii[k] * 0.15f))
+            val body = sampleSpline(centers.subList(0, n), STEPS)
+            val maxR = slotW * 0.28f
+            val minR = slotW * 0.05f // острый кончик хвоста
+            val radii = body.indices.map { k ->
+                val t = k.toFloat() / (body.size - 1)
+                minR + (maxR - minR) * (1f - (1f - t) * (1f - t)) // быстро толстеет от кончика
             }
+            val o = 1.6.dp.toPx()
+
+            // 1. Мягкая тень под телом — одной линией, чтобы полупрозрачность не накладывалась.
+            val shadowShift = Offset(0f, maxR * 0.55f + 2.dp.toPx())
+            val shadowPath = Path().apply {
+                moveTo(body[body.size / 6].x + shadowShift.x, body[body.size / 6].y + shadowShift.y)
+                for (idx in body.size / 6 until body.size) lineTo(body[idx].x + shadowShift.x, body[idx].y + shadowShift.y)
+            }
+            drawPath(shadowPath, Shadow, style = Stroke(width = maxR * 1.5f, cap = StrokeCap.Round))
+            // 2. Контур и основной цвет.
+            body.forEachIndexed { k, p -> drawCircle(Outline, radii[k] + o, p) }
+            body.forEachIndexed { k, p -> drawCircle(Body, radii[k], p) }
+            // 3. Брюшко снизу.
+            body.forEachIndexed { k, p -> drawCircle(Belly, radii[k] * 0.48f, p + Offset(0f, radii[k] * 0.48f)) }
+            // 4. Узор-ромбики вдоль спины.
+            var k = STEPS / 2
+            while (k < body.size - STEPS / 3) {
+                drawDiamond(body[k] - Offset(0f, radii[k] * 0.12f), radii[k] * 0.62f)
+                k += STEPS / 2
+            }
+            // 5. Блик сверху — даёт объём.
+            body.forEachIndexed { k2, p -> drawCircle(BodyHighlight, radii[k2] * 0.2f, p - Offset(0f, radii[k2] * 0.6f)) }
         }
-        drawHead(centers[n - 1], slotW, SnakeGreen, faded = false)
+        drawHead(head, slotW)
     }
 }
 
@@ -97,7 +122,7 @@ private fun slotAt(x: Float, width: Float): Int =
     ((x / (width / (SLOTS + RIGHT_SPACE))).toInt() + 1).coerceIn(1, SLOTS)
 
 /** Волна тела: змейка извивается. */
-private fun waveY(i: Int, height: Float): Float = sin(i * 1.05 + PI / 3).toFloat() * height * 0.17f
+private fun waveY(i: Int, height: Float): Float = sin(i * 1.05 + PI / 3).toFloat() * height * 0.15f
 
 /** Точки сплайна Катмулла–Рома через [points] — для плавного тела без изломов. */
 private fun sampleSpline(points: List<Offset>, stepsPerSegment: Int): List<Offset> {
@@ -121,31 +146,96 @@ private fun sampleSpline(points: List<Offset>, stepsPerSegment: Int): List<Offse
     return out
 }
 
-private fun DrawScope.drawHead(center: Offset, slotW: Float, color: Color, faded: Boolean) {
-    val headW = slotW * 0.8f
-    val headH = slotW * 0.62f
-    val topLeft = Offset(center.x - headW * 0.42f, center.y - headH / 2)
-
-    if (!faded) {
-        // Раздвоенный язык торчит вперёд.
-        val start = Offset(topLeft.x + headW, center.y + headH * 0.05f)
-        val fork = Offset(start.x + slotW * 0.2f, start.y)
-        val stroke = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-        drawPath(Path().apply { moveTo(start.x, start.y); lineTo(fork.x, fork.y) }, Tongue, style = stroke)
-        drawPath(Path().apply { moveTo(fork.x, fork.y); lineTo(fork.x + slotW * 0.08f, fork.y - slotW * 0.07f) }, Tongue, style = stroke)
-        drawPath(Path().apply { moveTo(fork.x, fork.y); lineTo(fork.x + slotW * 0.08f, fork.y + slotW * 0.07f) }, Tongue, style = stroke)
-        val o = 1.6.dp.toPx()
-        drawOval(SnakeDark, topLeft - Offset(o, o), Size(headW + 2 * o, headH + 2 * o))
+/** Ромбик узора с светлой серединкой. */
+private fun DrawScope.drawDiamond(c: Offset, size: Float) {
+    fun diamond(s: Float) = Path().apply {
+        moveTo(c.x, c.y - s * 0.6f)
+        lineTo(c.x + s * 0.5f, c.y)
+        lineTo(c.x, c.y + s * 0.6f)
+        lineTo(c.x - s * 0.5f, c.y)
+        close()
     }
-    drawOval(color, topLeft, Size(headW, headH))
-    if (faded) return
+    drawPath(diamond(size), Diamond)
+    drawPath(diamond(size * 0.45f), DiamondCenter.copy(alpha = 0.8f))
+}
 
-    // Светлая щёчка и глазки.
-    drawOval(SnakeBelly.copy(alpha = 0.6f), Offset(topLeft.x + headW * 0.3f, center.y + headH * 0.06f), Size(headW * 0.5f, headH * 0.3f))
-    val eyeR = headH * 0.16f
-    for (dy in listOf(-0.2f, 0.16f)) {
-        val eye = Offset(topLeft.x + headW * 0.62f, center.y + headH * dy - headH * 0.04f)
-        drawCircle(Color.White, eyeR, eye)
-        drawCircle(Color.Black, eyeR * 0.55f, eye + Offset(eyeR * 0.28f, 0f))
+/** Голова: округлая, с мордочкой, большими глазками с бликами, щёчками и язычком. */
+private fun DrawScope.drawHead(center: Offset, slotW: Float) {
+    val w = slotW * 0.95f
+    val h = slotW * 0.72f
+    val left = center.x - w * 0.42f
+    val top = center.y - h / 2
+    val o = 1.6.dp.toPx()
+
+    // Форма головы: шире у затылка, сужается к мордочке.
+    fun headPath(grow: Float) = Path().apply {
+        val l = left - grow
+        val t = top - grow
+        val r = left + w + grow
+        val b = top + h + grow
+        moveTo(l + w * 0.15f, t + h * 0.1f)
+        cubicTo(l + w * 0.45f, t - h * 0.08f, r - w * 0.12f, t + h * 0.05f, r, t + (b - t) * 0.48f)
+        cubicTo(r - w * 0.1f, b - h * 0.02f, l + w * 0.45f, b + h * 0.08f, l + w * 0.15f, b - h * 0.1f)
+        cubicTo(l - w * 0.05f, b - h * 0.3f, l - w * 0.05f, t + h * 0.3f, l + w * 0.15f, t + h * 0.1f)
+        close()
     }
+
+    // Язычок (высунут).
+    val mouth = Offset(left + w, center.y + h * 0.08f)
+    val fork = Offset(mouth.x + slotW * 0.2f, mouth.y + slotW * 0.02f)
+    val tongueStroke = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+    drawPath(Path().apply { moveTo(mouth.x - w * 0.05f, mouth.y); lineTo(fork.x, fork.y) }, Tongue, style = tongueStroke)
+    drawPath(Path().apply { moveTo(fork.x, fork.y); lineTo(fork.x + slotW * 0.08f, fork.y - slotW * 0.07f) }, Tongue, style = tongueStroke)
+    drawPath(Path().apply { moveTo(fork.x, fork.y); lineTo(fork.x + slotW * 0.08f, fork.y + slotW * 0.06f) }, Tongue, style = tongueStroke)
+
+    // Тень, контур, голова.
+    drawOval(Shadow, Offset(left, top + h * 0.75f), Size(w, h * 0.45f))
+    drawPath(headPath(o), Outline)
+    drawPath(headPath(0f), Body)
+    // Нижняя челюсть светлее.
+    drawOval(Belly, Offset(left + w * 0.25f, center.y + h * 0.12f), Size(w * 0.62f, h * 0.3f))
+    // Блик на макушке.
+    drawOval(BodyLight.copy(alpha = 0.6f), Offset(left + w * 0.2f, top + h * 0.1f), Size(w * 0.45f, h * 0.16f))
+    // Ромбик на затылке.
+    drawDiamond(Offset(left + w * 0.2f, center.y - h * 0.05f), h * 0.35f)
+
+    // Щёчка.
+    drawOval(Blush.copy(alpha = 0.55f), Offset(left + w * 0.5f, center.y + h * 0.08f), Size(w * 0.2f, h * 0.14f))
+    // Ноздри.
+    drawCircle(Outline, h * 0.035f, Offset(left + w * 0.9f, center.y - h * 0.12f))
+    // Улыбка.
+    drawArc(
+        color = Outline,
+        startAngle = 20f,
+        sweepAngle = 70f,
+        useCenter = false,
+        topLeft = Offset(left + w * 0.62f, center.y - h * 0.12f),
+        size = Size(w * 0.3f, h * 0.3f),
+        style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round),
+    )
+    // Большой глаз с бликами (змейка в профиль — один глаз).
+    val eye = Offset(left + w * 0.6f, center.y - h * 0.12f)
+    val eyeR = h * 0.22f
+    drawCircle(Outline, eyeR + o * 0.6f, eye)
+    drawCircle(Color.White, eyeR, eye)
+    drawCircle(Color(0xFF212121), eyeR * 0.68f, eye + Offset(eyeR * 0.18f, eyeR * 0.05f))
+    drawCircle(Color.White, eyeR * 0.26f, eye + Offset(eyeR * 0.32f, -eyeR * 0.25f))
+    drawCircle(Color.White.copy(alpha = 0.8f), eyeR * 0.12f, eye + Offset(-eyeR * 0.05f, eyeR * 0.3f))
+}
+
+/** Спящая серая голова, когда оценки нет. */
+private fun DrawScope.drawSleepingHead(center: Offset, slotW: Float, color: Color) {
+    val w = slotW * 0.9f
+    val h = slotW * 0.66f
+    drawOval(color, Offset(center.x - w * 0.42f, center.y - h / 2), Size(w, h))
+    // Закрытый глазик-дуга.
+    drawArc(
+        color = color.copy(alpha = (color.alpha * 2.5f).coerceAtMost(1f)),
+        startAngle = 20f,
+        sweepAngle = 140f,
+        useCenter = false,
+        topLeft = Offset(center.x + w * 0.05f, center.y - h * 0.3f),
+        size = Size(w * 0.25f, h * 0.25f),
+        style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round),
+    )
 }
