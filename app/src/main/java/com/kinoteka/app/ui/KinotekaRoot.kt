@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.kinoteka.app.ui.browse.BrowseScreen
 import com.kinoteka.app.ui.components.LocalLibrary
+import com.kinoteka.app.ui.components.LocalSectionPrefs
+import com.kinoteka.app.ui.components.SectionPrefs
 import com.kinoteka.app.ui.details.DetailsScreen
 import com.kinoteka.app.ui.genres.GenresScreen
 import com.kinoteka.app.ui.home.HomeScreen
@@ -82,6 +84,12 @@ private val tabs = listOf(
 fun KinotekaRoot(container: AppContainer) {
     val library by container.library.entries.collectAsStateWithLifecycle()
     val scale by container.ui.scale.collectAsStateWithLifecycle()
+    val sectionStyle by container.ui.sectionStyle.collectAsStateWithLifecycle()
+    val sectionOrder by container.ui.sectionOrder.collectAsStateWithLifecycle()
+    val hiddenSections by container.ui.hiddenSections.collectAsStateWithLifecycle()
+    val sectionPrefs = remember(sectionStyle, sectionOrder, hiddenSections) {
+        SectionPrefs(visible = sectionOrder.filter { it !in hiddenSections }, style = sectionStyle)
+    }
     // «Розмір інтерфейсу»: увеличиваем плотность, и пропорционально растёт всё — текст, кнопки, постеры.
     val base = LocalDensity.current
     val scaled = remember(base, scale) { Density(base.density * scale.factor, base.fontScale) }
@@ -89,6 +97,7 @@ fun KinotekaRoot(container: AppContainer) {
         LocalContainer provides container,
         LocalLibrary provides library,
         LocalDensity provides scaled,
+        LocalSectionPrefs provides sectionPrefs,
     ) {
         if (!container.hasApiKey) {
             NoApiKeyScreen()
@@ -104,8 +113,10 @@ private fun AppScaffold() {
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     // Выбранный раздел общий для Главной, Жанров и т.д.
-    var sectionName by rememberSaveable { mutableStateOf(Section.MOVIES.name) }
-    val section = Section.fromName(sectionName) ?: Section.MOVIES
+    var sectionName by rememberSaveable { mutableStateOf<String?>(null) }
+    // Если выбранный раздел скрыли в настройках — берём первый видимый.
+    val visibleSections = LocalSectionPrefs.current.visible
+    val section = Section.fromName(sectionName)?.takeIf { it in visibleSections } ?: visibleSections.first()
     val onSection: (Section) -> Unit = { sectionName = it.name }
 
     val openDetails: (MediaCard) -> Unit = { nav.navigate(DetailsRoute(it.type.path, it.id)) }

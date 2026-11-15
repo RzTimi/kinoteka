@@ -71,27 +71,6 @@ sealed interface UiState<out T> {
 fun formatRating(value: Double): String = String.format(Locale.US, "%.1f", value)
 
 @Composable
-fun SectionChips(
-    selected: Section?,
-    onSelect: (Section?) -> Unit,
-    modifier: Modifier = Modifier,
-    showAll: Boolean = false,
-) {
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (showAll) item {
-            FilterChip(selected = selected == null, onClick = { onSelect(null) }, label = { Text("Усі") })
-        }
-        items(Section.entries) { s ->
-            FilterChip(selected = selected == s, onClick = { onSelect(s) }, label = { Text(s.title) })
-        }
-    }
-}
-
-@Composable
 fun <T> ChipRow(
     options: List<T>,
     selected: T,

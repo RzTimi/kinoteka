@@ -44,6 +44,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinoteka.app.BuildConfig
 import com.kinoteka.app.data.UiScale
+import com.kinoteka.app.data.Section
+import com.kinoteka.app.data.SectionStyle
+import com.kinoteka.app.ui.components.LocalSectionPrefs
+import com.kinoteka.app.ui.components.SectionChips
+import com.kinoteka.app.ui.components.icon
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Style
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.kinoteka.app.ui.LocalContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,6 +109,9 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
                     }
                 }
 
+                SectionStyleCard()
+                SectionsCard()
+
                 // Синхронізація и «Про застосунок»
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(vertical = 8.dp)) {
@@ -108,6 +127,106 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
                             subtitle = "Версія ${BuildConfig.VERSION_NAME}, джерела даних",
                             onClick = onAbout,
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Стиль кнопок разделов + живой предпросмотр. */
+@Composable
+private fun SectionStyleCard() {
+    val ui = LocalContainer.current.ui
+    val style by ui.sectionStyle.collectAsStateWithLifecycle()
+    val visible = LocalSectionPrefs.current.visible
+    var previewSelected by remember { mutableStateOf<Section?>(null) }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(vertical = 16.dp)) {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Style, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text("Кнопки розділів", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(8.dp))
+            SectionStyle.entries.forEach { option ->
+                Row(
+                    Modifier.fillMaxWidth().selectable(selected = option == style, onClick = { ui.setSectionStyle(option) })
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = option == style, onClick = { ui.setSectionStyle(option) })
+                    Text(option.label, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Попередній перегляд",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            SectionChips(
+                selected = previewSelected ?: visible.firstOrNull(),
+                onSelect = { previewSelected = it },
+                style = style,
+            )
+        }
+    }
+}
+
+/** Какие разделы показывать и в каком порядке. */
+@Composable
+private fun SectionsCard() {
+    val ui = LocalContainer.current.ui
+    val order by ui.sectionOrder.collectAsStateWithLifecycle()
+    val hidden by ui.hiddenSections.collectAsStateWithLifecycle()
+    val visibleCount = order.count { it !in hidden }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(vertical = 16.dp)) {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Checklist, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text("Розділи", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Text(
+                "Позначте потрібні розділи та змініть порядок стрілками.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+            )
+            order.forEachIndexed { index, section ->
+                val isVisible = section !in hidden
+                // Последний видимый раздел выключить нельзя.
+                val canToggle = !isVisible || visibleCount > 1
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = isVisible,
+                        onCheckedChange = { ui.setSectionVisible(section, it) },
+                        enabled = canToggle,
+                    )
+                    Icon(
+                        section.icon, null, Modifier.size(22.dp),
+                        tint = if (isVisible) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        section.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isVisible) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { ui.moveSection(section, -1) }, enabled = index > 0) {
+                        Icon(Icons.Default.KeyboardArrowUp, "Вище")
+                    }
+                    IconButton(onClick = { ui.moveSection(section, +1) }, enabled = index < order.lastIndex) {
+                        Icon(Icons.Default.KeyboardArrowDown, "Нижче")
                     }
                 }
             }

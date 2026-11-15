@@ -12,6 +12,14 @@ enum class UiScale(val label: String, val factor: Float) {
     XLARGE("Дуже великий", 1.3f),
 }
 
+/** Как выглядят кнопки разделов (Фільми, Серіали…). */
+enum class SectionStyle(val label: String) {
+    CHIPS("Таблетки"),
+    CHIPS_ICONS("Таблетки з іконками"),
+    TABS("Вкладки"),
+    TILES("Плитки"),
+}
+
 /** Настройки внешнего вида, хранятся на телефоне. */
 class UiSettings(context: Context) {
     private val prefs = context.getSharedPreferences("ui", Context.MODE_PRIVATE)
@@ -21,12 +29,61 @@ class UiSettings(context: Context) {
     )
     val scale: StateFlow<UiScale> = _scale.asStateFlow()
 
+    private val _sectionStyle = MutableStateFlow(
+        SectionStyle.entries.firstOrNull { it.name == prefs.getString(KEY_STYLE, null) } ?: SectionStyle.CHIPS
+    )
+    val sectionStyle: StateFlow<SectionStyle> = _sectionStyle.asStateFlow()
+
+    /** Порядок всех разделов (включая скрытые). */
+    private val _sectionOrder = MutableStateFlow(loadOrder())
+    val sectionOrder: StateFlow<List<Section>> = _sectionOrder.asStateFlow()
+
+    private val _hiddenSections = MutableStateFlow(
+        prefs.getString(KEY_HIDDEN, "").orEmpty().split(',').mapNotNull { Section.fromName(it) }.toSet()
+    )
+    val hiddenSections: StateFlow<Set<Section>> = _hiddenSections.asStateFlow()
+
     fun setScale(value: UiScale) {
         _scale.value = value
         prefs.edit().putString(KEY_SCALE, value.name).apply()
     }
 
+    fun setSectionStyle(value: SectionStyle) {
+        _sectionStyle.value = value
+        prefs.edit().putString(KEY_STYLE, value.name).apply()
+    }
+
+    /** Показать/скрыть раздел. Последний видимый раздел скрыть нельзя. */
+    fun setSectionVisible(section: Section, visible: Boolean) {
+        val hidden = _hiddenSections.value.toMutableSet()
+        if (visible) hidden -= section else hidden += section
+        if (hidden.size >= Section.entries.size) return
+        _hiddenSections.value = hidden
+        prefs.edit().putString(KEY_HIDDEN, hidden.joinToString(",") { it.name }).apply()
+    }
+
+    /** Сдвинуть раздел вверх (-1) или вниз (+1) в списке. */
+    fun moveSection(section: Section, delta: Int) {
+        val order = _sectionOrder.value.toMutableList()
+        val from = order.indexOf(section)
+        val to = (from + delta).coerceIn(0, order.lastIndex)
+        if (from < 0 || from == to) return
+        order.removeAt(from)
+        order.add(to, section)
+        _sectionOrder.value = order
+        prefs.edit().putString(KEY_ORDER, order.joinToString(",") { it.name }).apply()
+    }
+
+    private fun loadOrder(): List<Section> {
+        val saved = prefs.getString(KEY_ORDER, null)?.split(',')?.mapNotNull { Section.fromName(it) }.orEmpty()
+        // Новые разделы (если появятся в будущих версиях) добавляются в конец.
+        return (saved + Section.entries).distinct()
+    }
+
     private companion object {
         const val KEY_SCALE = "scale"
+        const val KEY_STYLE = "section_style"
+        const val KEY_ORDER = "section_order"
+        const val KEY_HIDDEN = "section_hidden"
     }
 }
