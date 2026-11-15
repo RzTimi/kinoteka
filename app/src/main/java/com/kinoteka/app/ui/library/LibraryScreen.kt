@@ -62,18 +62,21 @@ import com.kinoteka.app.ui.components.EmptyBox
 import com.kinoteka.app.ui.components.LocalLibrary
 import com.kinoteka.app.ui.components.PosterCard
 import com.kinoteka.app.ui.components.SectionChips
+import com.kinoteka.app.i18n.tr
 import java.util.Locale
 
-private enum class LibraryFilter(val label: String) {
-    ALL("Усі"),
-    FAVORITE("❤ Улюблене"),
-    RATED("Оцінені"),
-    WANT("Хочу"),
-    WATCHING("Дивлюсь"),
-    REWATCHING("Переглядаю"),
-    WATCHED("Переглянуто"),
-    ON_HOLD("Відкладено"),
-    DROPPED("Кинув");
+private enum class LibraryFilter(private val uk: String, private val en: String, private val ru: String) {
+    ALL("Усі", "All", "Все"),
+    FAVORITE("❤ Улюблене", "❤ Favorite", "❤ Избранное"),
+    RATED("Оцінені", "Rated", "Оценённые"),
+    WANT("Хочу", "Want", "Хочу"),
+    WATCHING("Дивлюсь", "Watching", "Смотрю"),
+    REWATCHING("Переглядаю", "Rewatching", "Пересматриваю"),
+    WATCHED("Переглянуто", "Watched", "Просмотрено"),
+    ON_HOLD("Відкладено", "On hold", "Отложено"),
+    DROPPED("Кинув", "Dropped", "Брошено");
+
+    val label: String get() = tr(uk, en, ru)
 
     fun matches(e: LibraryEntry) = when (this) {
         ALL -> true
@@ -88,8 +91,13 @@ private enum class LibraryFilter(val label: String) {
     }
 }
 
-private enum class LibrarySort(val label: String) {
-    RECENT("Спочатку нові"), RATING("За моєю оцінкою"), TITLE("За назвою"), YEAR("За роком");
+private enum class LibrarySort(private val uk: String, private val en: String, private val ru: String) {
+    RECENT("Спочатку нові", "Newest first", "Сначала новые"),
+    RATING("За моєю оцінкою", "By my rating", "По моей оценке"),
+    TITLE("За назвою", "By title", "По названию"),
+    YEAR("За роком", "By year", "По году");
+
+    val label: String get() = tr(uk, en, ru)
 
     fun sort(list: List<LibraryEntry>): List<LibraryEntry> = when (this) {
         RECENT -> list.sortedByDescending { it.updatedAt }
@@ -137,8 +145,11 @@ fun LibraryScreen(
     )
     val rated = bySection.mapNotNull { it.score }
     val stats = buildString {
-        append("Усього: ${bySection.size}")
-        if (rated.isNotEmpty()) append(" · Оцінено: ${rated.size} · Середня: ${String.format(Locale.US, "%.1f", rated.average())}")
+        append(tr("Усього: ${bySection.size}", "Total: ${bySection.size}", "Всего: ${bySection.size}"))
+        if (rated.isNotEmpty()) {
+            val avg = String.format(Locale.US, "%.1f", rated.average())
+            append(tr(" · Оцінено: ${rated.size} · Середня: $avg", " · Rated: ${rated.size} · Average: $avg", " · Оценено: ${rated.size} · Средняя: $avg"))
+        }
     }
 
     Scaffold(
@@ -151,30 +162,30 @@ fun LibraryScreen(
                             OutlinedTextField(
                                 value = query,
                                 onValueChange = { query = it },
-                                placeholder = { Text("Назва або нотатка…") },
+                                placeholder = { Text(tr("Назва або нотатка…", "Title or note…", "Название или заметка…")) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 trailingIcon = {
-                                    IconButton(onClick = { query = ""; searching = false }) { Icon(Icons.Default.Close, "Закрити пошук") }
+                                    IconButton(onClick = { query = ""; searching = false }) { Icon(Icons.Default.Close, tr("Закрити пошук", "Close search", "Закрыть поиск")) }
                                 },
                             )
                         } else {
-                            Text("Мої оцінки", fontWeight = FontWeight.Bold)
+                            Text(tr("Мої оцінки", "My ratings", "Мои оценки"), fontWeight = FontWeight.Bold)
                         }
                     },
                     actions = {
-                        if (!searching) IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, "Пошук у бібліотеці") }
+                        if (!searching) IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, tr("Пошук у бібліотеці", "Search library", "Поиск в библиотеке")) }
                         // Облако: вход в Google / состояние синхронизации.
                         IconButton(onClick = onAccount) {
                             when {
                                 syncState.syncing -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                                syncState.signedIn && syncState.error == null -> Icon(Icons.Default.CloudDone, "Синхронізовано з Google Диском")
-                                syncState.signedIn -> Icon(Icons.Default.SyncProblem, "Помилка синхронізації", tint = MaterialTheme.colorScheme.error)
-                                else -> Icon(Icons.Default.CloudOff, "Увійти через Google")
+                                syncState.signedIn && syncState.error == null -> Icon(Icons.Default.CloudDone, tr("Синхронізовано з Google Диском", "Synced with Google Drive", "Синхронизировано с Google Диском"))
+                                syncState.signedIn -> Icon(Icons.Default.SyncProblem, tr("Помилка синхронізації", "Sync error", "Ошибка синхронизации"), tint = MaterialTheme.colorScheme.error)
+                                else -> Icon(Icons.Default.CloudOff, tr("Увійти через Google", "Sign in with Google", "Войти через Google"))
                             }
                         }
                         Box {
-                            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, "Сортування") }
+                            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, tr("Сортування", "Sorting", "Сортировка")) }
                             DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                                 LibrarySort.entries.forEach { s ->
                                     DropdownMenuItem(
@@ -185,20 +196,20 @@ fun LibraryScreen(
                             }
                         }
                         Box {
-                            IconButton(onClick = { moreMenu = true }) { Icon(Icons.Default.MoreVert, "Ще") }
+                            IconButton(onClick = { moreMenu = true }) { Icon(Icons.Default.MoreVert, tr("Ще", "More", "Ещё")) }
                             DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text("Статистика і змійка") },
+                                    text = { Text(tr("Статистика і змійка", "Stats and snake", "Статистика и змейка")) },
                                     leadingIcon = { Icon(Icons.Default.BarChart, null) },
                                     onClick = { moreMenu = false; onStats() },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Додати фільм вручну") },
+                                    text = { Text(tr("Додати фільм вручну", "Add a movie manually", "Добавить фильм вручную")) },
                                     leadingIcon = { Icon(Icons.Default.Add, null) },
                                     onClick = { moreMenu = false; onAddManual() },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Імпорт з Letterboxd / CSV") },
+                                    text = { Text(tr("Імпорт з Letterboxd / CSV", "Import from Letterboxd / CSV", "Импорт из Letterboxd / CSV")) },
                                     leadingIcon = { Icon(Icons.Default.FileUpload, null) },
                                     onClick = { moreMenu = false; onImport() },
                                 )
@@ -212,12 +223,12 @@ fun LibraryScreen(
                 if (collections.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     val options: List<String?> = listOf<String?>(null) + collections.entries.sortedBy { it.value }.map { it.key }
-                    ChipRow(options, collection, { it?.let { n -> "📁 $n" } ?: "Усі підбірки" }, { collection = it })
+                    ChipRow(options, collection, { it?.let { n -> "📁 $n" } ?: tr("Усі підбірки", "All collections", "Все подборки") }, { collection = it })
                 }
                 if (genresInLibrary.size > 1) {
                     Spacer(Modifier.height(4.dp))
                     val options: List<String?> = listOf<String?>(null) + genresInLibrary
-                    ChipRow(options, genre, { it ?: "Усі жанри" }, { genre = it })
+                    ChipRow(options, genre, { it ?: tr("Усі жанри", "All genres", "Все жанры") }, { genre = it })
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -242,8 +253,12 @@ fun LibraryScreen(
         val modifier = Modifier.fillMaxSize().padding(padding)
         if (visible.isEmpty()) {
             EmptyBox(
-                if (all.isEmpty()) "Тут з'являться фільми, які ви оціните або додасте в «Хочу подивитись».\nВідкрийте будь-який фільм і поставте зірки ⭐"
-                else "Нічого не знайдено за цим фільтром",
+                if (all.isEmpty()) tr(
+                    "Тут з'являться фільми, які ви оціните або додасте в «Хочу подивитись».\nВідкрийте будь-який фільм і поставте зірки ⭐",
+                    "Movies you rate or add to “Want to watch” will appear here.\nOpen any movie and give it stars ⭐",
+                    "Здесь появятся фильмы, которые вы оцените или добавите в «Хочу посмотреть».\nОткройте любой фильм и поставьте звёзды ⭐",
+                )
+                else tr("Нічого не знайдено за цим фільтром", "Nothing found for this filter", "Ничего не найдено по этому фильтру"),
                 modifier,
             )
         } else {
@@ -262,7 +277,7 @@ fun LibraryScreen(
                             if (e.favorite) "❤" else null,
                             e.year,
                             e.status?.label,
-                            e.watchedEpisodeCount.takeIf { it > 0 && e.type == com.kinoteka.app.data.MediaType.TV }?.let { "$it сер." },
+                            e.watchedEpisodeCount.takeIf { it > 0 && e.type == com.kinoteka.app.data.MediaType.TV }?.let { tr("$it сер.", "$it ep.", "$it сер.") },
                         ).joinToString(" · "),
                         tmdbRating = null,
                         myRating = e.score,

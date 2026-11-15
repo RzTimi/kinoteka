@@ -52,6 +52,8 @@ import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.friendlyMessage
 import com.kinoteka.app.data.library.WatchStatus
+import com.kinoteka.app.i18n.plural
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ChipRow
 import com.kinoteka.app.ui.components.LocalLibrary
@@ -79,13 +81,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class RouletteSource(val label: String) { POPULAR("Популярне"), MY_LIST("Мій список «Хочу»") }
+enum class RouletteSource(private val uk: String, private val en: String, private val ru: String) {
+    POPULAR("Популярне", "Popular", "Популярное"),
+    MY_LIST("Мій список «Хочу»", "My “Want” list", "Мой список «Хочу»");
 
-enum class RuntimeFilter(val label: String, val range: IntRange?) {
-    ANY("Будь-яка", null),
-    SHORT("до 1,5 год", 1..90),
-    MEDIUM("1,5–2 год", 90..120),
-    LONG("понад 2 год", 120..1000),
+    val label: String get() = tr(uk, en, ru)
+}
+
+enum class RuntimeFilter(private val uk: String, private val en: String, private val ru: String, val range: IntRange?) {
+    ANY("Будь-яка", "Any length", "Любая", null),
+    SHORT("до 1,5 год", "up to 1.5 h", "до 1,5 ч", 1..90),
+    MEDIUM("1,5–2 год", "1.5–2 h", "1,5–2 ч", 90..120),
+    LONG("понад 2 год", "over 2 h", "более 2 ч", 120..1000);
+
+    val label: String get() = tr(uk, en, ru)
 }
 
 data class RouletteState(
@@ -166,8 +175,12 @@ class RouletteViewModel(private val repo: MediaRepository, startSection: Section
                 _state.update {
                     it.copy(
                         loading = false,
-                        message = if (s.source == RouletteSource.MY_LIST) "У списку «Хочу подивитись» поки порожньо.\nПозначте фільми в їхніх картках."
-                        else "Нічого не знайдено. Спробуйте інші фільтри",
+                        message = if (s.source == RouletteSource.MY_LIST) tr(
+                            "У списку «Хочу подивитись» поки порожньо.\nПозначте фільми в їхніх картках.",
+                            "Your “Want to watch” list is empty for now.\nMark movies on their pages.",
+                            "В списке «Хочу посмотреть» пока пусто.\nОтметьте фильмы в их карточках.",
+                        )
+                        else tr("Нічого не знайдено. Спробуйте інші фільтри", "Nothing found. Try other filters", "Ничего не найдено. Попробуйте другие фильтры"),
                     )
                 }
                 return@launch
@@ -217,8 +230,8 @@ fun RouletteScreen(onBack: () -> Unit, onOpen: (MediaCard) -> Unit, section: Sec
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Що подивитись? 🐍") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                title = { Text(tr("Що подивитись? 🐍", "What to watch? 🐍", "Что посмотреть? 🐍")) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
             )
         },
     ) { padding ->
@@ -232,16 +245,22 @@ fun RouletteScreen(onBack: () -> Unit, onOpen: (MediaCard) -> Unit, section: Sec
                 if (state.source == RouletteSource.POPULAR) {
                     SectionChips(selected = state.section, onSelect = { it?.let(vm::setSection) })
                     if (state.section.types.size > 1) {
-                        ChipRow(state.section.types, state.type, { if (it == MediaType.MOVIE) "Фільми" else "Серіали" }, vm::setType)
+                        ChipRow(state.section.types, state.type, { if (it == MediaType.MOVIE) tr("Фільми", "Movies", "Фильмы") else tr("Серіали", "TV Shows", "Сериалы") }, vm::setType)
                     }
                     if (state.genres.isNotEmpty()) {
                         val options: List<GenreOption?> = listOf<GenreOption?>(null) + state.genres
-                        ChipRow(options, state.genre, { it?.name ?: "Будь-який жанр" }, vm::setGenre)
+                        ChipRow(options, state.genre, { it?.name ?: tr("Будь-який жанр", "Any genre", "Любой жанр") }, vm::setGenre)
                     }
                     ChipRow(RuntimeFilter.entries, state.runtime, { it.label }, vm::setRuntime)
                 } else {
+                    val n = myList.size
+                    val what = plural(n, "фільму чи серіалу|фільмів і серіалів|фільмів і серіалів", "movie or show|movies and shows", "фильма или сериала|фильмов и сериалов|фильмов и сериалов")
                     Text(
-                        "Змійка обере з ${myList.size} фільмів і серіалів зі статусом «Хочу подивитись»",
+                        tr(
+                            "Змійка обере з $n $what зі статусом «Хочу подивитись»",
+                            "The snake will pick from $n $what marked “Want to watch”",
+                            "Змейка выберет из $n $what со статусом «Хочу посмотреть»",
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -284,7 +303,7 @@ fun RouletteScreen(onBack: () -> Unit, onOpen: (MediaCard) -> Unit, section: Sec
                         Text("🐍", style = MaterialTheme.typography.displayLarge)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            state.message ?: "Натисніть «Крутити», і змійка обере, що подивитись",
+                            state.message ?: tr("Натисніть «Крутити», і змійка обере, що подивитись", "Tap “Spin” and the snake will pick what to watch", "Нажмите «Крутить», и змейка выберет, что посмотреть"),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -310,11 +329,11 @@ fun RouletteScreen(onBack: () -> Unit, onOpen: (MediaCard) -> Unit, section: Sec
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                FilledTonalButton(onClick = { onOpen(r) }) { Text("Відкрити картку") }
+                FilledTonalButton(onClick = { onOpen(r) }) { Text(tr("Відкрити картку", "Open details", "Открыть карточку")) }
             }
             if (state.spinning) {
                 Spacer(Modifier.height(14.dp))
-                Text("Змійка обирає…", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(tr("Змійка обирає…", "The snake is choosing…", "Змейка выбирает…"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             }
 
             Spacer(Modifier.height(20.dp))
@@ -325,7 +344,7 @@ fun RouletteScreen(onBack: () -> Unit, onOpen: (MediaCard) -> Unit, section: Sec
             ) {
                 Icon(Icons.Default.Casino, null)
                 Spacer(Modifier.width(10.dp))
-                Text(if (state.result == null) "Крутити!" else "Ще раз", style = MaterialTheme.typography.titleMedium)
+                Text(if (state.result == null) tr("Крутити!", "Spin!", "Крутить!") else tr("Ще раз", "Again", "Ещё раз"), style = MaterialTheme.typography.titleMedium)
             }
             Spacer(Modifier.height(24.dp))
         }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.graphics.Color
 import com.kinoteka.app.data.AppTheme
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.theme.JungleLeaves
 import com.kinoteka.app.ui.theme.LocalAppTheme
 import androidx.compose.material3.Icon
@@ -99,10 +100,10 @@ fun HomeScreen(
                     // В джунглях за шапкой свисают листья и лиана.
                     if (jungle) JungleLeaves(Modifier.matchParentSize())
                     TopAppBar(
-                        title = { Text(if (jungle) "Кінотека 🐍" else "Кінотека", fontWeight = FontWeight.Bold) },
+                        title = { Text(tr("Кінотека", "Kinoteka", "Кинотека") + if (jungle) " 🐍" else "", fontWeight = FontWeight.Bold) },
                         actions = {
-                            IconButton(onClick = onRoulette) { Icon(Icons.Outlined.Casino, "Що подивитись?") }
-                            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "Налаштування") }
+                            IconButton(onClick = onRoulette) { Icon(Icons.Outlined.Casino, tr("Що подивитись?", "What to watch?", "Что посмотреть?")) }
+                            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, tr("Налаштування", "Settings", "Настройки")) }
                         },
                         colors = if (jungle) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                         else TopAppBarDefaults.topAppBarColors(),
@@ -117,7 +118,7 @@ fun HomeScreen(
             UiState.Loading -> LoadingBox(modifier)
             is UiState.Error -> ErrorBox(s.message, vm::load, modifier)
             is UiState.Success -> if (s.data.isEmpty()) {
-                EmptyBox("Нічого не знайдено", modifier)
+                EmptyBox(tr("Нічого не знайдено", "Nothing found", "Ничего не найдено"), modifier)
             } else {
                 LazyColumn(
                     modifier = modifier,

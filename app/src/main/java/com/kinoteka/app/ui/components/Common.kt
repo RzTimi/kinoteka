@@ -57,6 +57,7 @@ import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.PosterStorage
 import androidx.compose.ui.platform.LocalContext
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.theme.StarColor
 import java.util.Locale
 
@@ -218,7 +219,7 @@ fun MediaRow(
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             if (onMore != null) {
                 TextButton(onClick = onMore) {
-                    Text("Усі")
+                    Text(tr("Усі", "All", "Все"))
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
                 }
             }
@@ -288,7 +289,7 @@ fun ErrorBox(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier
     ) {
         Text(message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) { Text("Повторити") }
+        Button(onClick = onRetry) { Text(tr("Повторити", "Retry", "Повторить")) }
     }
 }
 

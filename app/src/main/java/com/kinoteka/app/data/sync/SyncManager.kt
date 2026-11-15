@@ -5,6 +5,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.kinoteka.app.data.library.LibraryFile
 import com.kinoteka.app.data.library.LibraryStore
 import com.kinoteka.app.data.library.PosterStorage
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -92,7 +93,7 @@ class SyncManager(
         scope.launch {
             val token = result.accessToken
             if (token == null) {
-                _state.update { it.copy(error = "Google не видав доступ до Диска") }
+                _state.update { it.copy(error = tr("Google не видав доступ до Диска", "Google didn't grant access to Drive", "Google не дал доступ к Диску")) }
                 return@launch
             }
             runCatching { drive.about(token) }
@@ -138,7 +139,7 @@ class SyncManager(
             _state.update { it.copy(syncing = true, error = null) }
             var token = knownToken ?: auth.tokenSilently(email)
             if (token == null) {
-                _state.update { it.copy(syncing = false, needsReauth = true, error = "Потрібно увійти знову") }
+                _state.update { it.copy(syncing = false, needsReauth = true, error = tr("Потрібно увійти знову", "Please sign in again", "Нужно войти снова")) }
                 return
             }
             try {
@@ -203,11 +204,11 @@ class SyncManager(
 
     private fun describe(e: Throwable): String = when (e) {
         is DriveException -> when (e.code) {
-            401, 403 -> "Немає доступу до Google Диска. Увійдіть знову"
-            else -> "Помилка Google Диска (${e.code})"
+            401, 403 -> tr("Немає доступу до Google Диска. Увійдіть знову", "No access to Google Drive. Please sign in again", "Нет доступа к Google Диску. Войдите снова")
+            else -> tr("Помилка Google Диска (${e.code})", "Google Drive error (${e.code})", "Ошибка Google Диска (${e.code})")
         }
-        is java.net.UnknownHostException -> "Немає з'єднання з інтернетом"
-        is IOException -> "Проблема з мережею"
+        is java.net.UnknownHostException -> tr("Немає з'єднання з інтернетом", "No internet connection", "Нет подключения к интернету")
+        is IOException -> tr("Проблема з мережею", "Network problem", "Проблема с сетью")
         else -> GoogleAuth.describe(e)
     }
 

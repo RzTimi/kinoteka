@@ -30,6 +30,7 @@ import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.MediaRepository
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.friendlyMessage
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.EmptyBox
 import com.kinoteka.app.ui.components.ErrorBox
@@ -129,11 +130,11 @@ fun SearchScreen(onItem: (MediaCard) -> Unit) {
                     value = state.query,
                     onValueChange = vm::setQuery,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    placeholder = { Text("Фільм, серіал, дорама…") },
+                    placeholder = { Text(tr("Фільм, серіал, дорама…", "Movie, TV show, drama…", "Фильм, сериал, дорама…")) },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     trailingIcon = {
                         if (state.query.isNotEmpty()) {
-                            IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, "Очистити") }
+                            IconButton(onClick = { vm.setQuery("") }) { Icon(Icons.Default.Close, tr("Очистити", "Clear", "Очистить")) }
                         }
                     },
                     singleLine = true,
@@ -148,10 +149,10 @@ fun SearchScreen(onItem: (MediaCard) -> Unit) {
     ) { padding ->
         val modifier = Modifier.fillMaxSize().padding(padding)
         when {
-            state.query.trim().length < 2 -> EmptyBox("Введіть назву, щоб знайти фільм або серіал", modifier)
+            state.query.trim().length < 2 -> EmptyBox(tr("Введіть назву, щоб знайти фільм або серіал", "Enter a title to find a movie or TV show", "Введите название, чтобы найти фильм или сериал"), modifier)
             state.loading -> LoadingBox(modifier)
             state.error != null && state.results.isEmpty() -> ErrorBox(state.error!!, vm::retry, modifier)
-            state.visible.isEmpty() && !state.hasMore -> EmptyBox("Нічого не знайдено", modifier)
+            state.visible.isEmpty() && !state.hasMore -> EmptyBox(tr("Нічого не знайдено", "Nothing found", "Ничего не найдено"), modifier)
             else -> MediaGrid(
                 items = state.visible,
                 onItem = onItem,

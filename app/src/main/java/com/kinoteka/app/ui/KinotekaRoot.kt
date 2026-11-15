@@ -44,6 +44,7 @@ import androidx.navigation.toRoute
 import com.kinoteka.app.AppContainer
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.about.AboutScreen
 import com.kinoteka.app.ui.settings.SettingsScreen
 import com.kinoteka.app.ui.person.PersonScreen
@@ -81,16 +82,18 @@ val LocalContainer = staticCompositionLocalOf<AppContainer> { error("AppContaine
 private data class TopTab(
     val route: Any,
     val routeClass: KClass<*>,
-    val label: String,
+    val labelFn: () -> String,
     val icon: ImageVector,
     val selectedIcon: ImageVector,
-)
+) {
+    val label: String get() = labelFn()
+}
 
 private val tabs = listOf(
-    TopTab(HomeRoute, HomeRoute::class, "Головна", Icons.Outlined.Home, Icons.Filled.Home),
-    TopTab(GenresRoute, GenresRoute::class, "Жанри", Icons.Outlined.Category, Icons.Filled.Category),
-    TopTab(SearchRoute, SearchRoute::class, "Пошук", Icons.Outlined.Search, Icons.Filled.Search),
-    TopTab(LibraryRoute, LibraryRoute::class, "Мої оцінки", Icons.Outlined.StarOutline, Icons.Filled.Star),
+    TopTab(HomeRoute, HomeRoute::class, { tr("Головна", "Home", "Главная") }, Icons.Outlined.Home, Icons.Filled.Home),
+    TopTab(GenresRoute, GenresRoute::class, { tr("Жанри", "Genres", "Жанры") }, Icons.Outlined.Category, Icons.Filled.Category),
+    TopTab(SearchRoute, SearchRoute::class, { tr("Пошук", "Search", "Поиск") }, Icons.Outlined.Search, Icons.Filled.Search),
+    TopTab(LibraryRoute, LibraryRoute::class, { tr("Мої оцінки", "My ratings", "Мои оценки") }, Icons.Outlined.StarOutline, Icons.Filled.Star),
 )
 
 @Composable
@@ -115,8 +118,8 @@ fun KinotekaRoot(container: AppContainer) {
         if (!container.hasApiKey) {
             NoApiKeyScreen()
         } else {
-            // Смена языка данных TMDB пересоздаёт экраны, чтобы всё загрузилось заново.
-            val language by container.ui.contentLanguage.collectAsStateWithLifecycle()
+            // Смена языка пересоздаёт экраны, чтобы всё загрузилось и перевелось заново.
+            val language by container.ui.appLanguage.collectAsStateWithLifecycle()
             key(language) { AppScaffold() }
         }
     }
@@ -129,10 +132,10 @@ private fun AppScaffold() {
     val destination = backStack?.destination
     // Вкладка, в которой сейчас находимся. Экраны поверх (настройки, карточка фильма…)
     // считаются частью той вкладки, из которой их открыли.
-    var currentTabName by rememberSaveable { mutableStateOf(tabs.first().label) }
+    var currentTabName by rememberSaveable { mutableStateOf(tabs.first().routeClass.simpleName.orEmpty()) }
     LaunchedEffect(destination) {
         tabs.firstOrNull { tab -> destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true }
-            ?.let { currentTabName = it.label }
+            ?.let { currentTabName = it.routeClass.simpleName.orEmpty() }
     }
     // Выбранный раздел общий для Главной, Жанров и т.д.
     var sectionName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -160,7 +163,7 @@ private fun AppScaffold() {
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->
-                    val selected = tab.label == currentTabName
+                    val selected = tab.routeClass.simpleName == currentTabName
                     NavigationBarItem(
                         selected = selected,
                         onClick = {
@@ -170,7 +173,7 @@ private fun AppScaffold() {
                                     nav.navigate(tab.route) { launchSingleTop = true }
                                 }
                             } else {
-                                currentTabName = tab.label
+                                currentTabName = tab.routeClass.simpleName.orEmpty()
                                 nav.navigate(tab.route) {
                                     popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
@@ -285,11 +288,17 @@ private fun NoApiKeyScreen() {
             Modifier.fillMaxSize().padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         ) {
-            Text("Потрібен ключ TMDB", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("1. Зареєструйтесь на themoviedb.org")
-            Text("2. Налаштування → API → створіть ключ")
-            Text("3. Відкрийте файл local.properties у корені проєкту та впишіть:\nTMDB_API_KEY=ваш_ключ")
-            Text("4. Перезапустіть застосунок з Android Studio (▶ Run)")
+            Text(tr("Потрібен ключ TMDB", "TMDB key required", "Нужен ключ TMDB"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(tr("1. Зареєструйтесь на themoviedb.org", "1. Sign up at themoviedb.org", "1. Зарегистрируйтесь на themoviedb.org"))
+            Text(tr("2. Налаштування → API → створіть ключ", "2. Settings → API → create a key", "2. Настройки → API → создайте ключ"))
+            Text(
+                tr(
+                    "3. Відкрийте файл local.properties у корені проєкту та впишіть:\nTMDB_API_KEY=ваш_ключ",
+                    "3. Open local.properties in the project root and add:\nTMDB_API_KEY=your_key",
+                    "3. Откройте файл local.properties в корне проекта и впишите:\nTMDB_API_KEY=ваш_ключ",
+                )
+            )
+            Text(tr("4. Перезапустіть застосунок з Android Studio (▶ Run)", "4. Restart the app from Android Studio (▶ Run)", "4. Перезапустите приложение из Android Studio (▶ Run)"))
         }
     }
 }

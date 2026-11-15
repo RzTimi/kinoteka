@@ -21,6 +21,7 @@ import com.kinoteka.app.MainActivity
 import com.kinoteka.app.R
 import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.library.WatchStatus
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
@@ -52,7 +53,7 @@ object Reminders {
 
     private fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= 26) {
-            val channel = NotificationChannel(CHANNEL, "Нові серії та прем'єри", NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(CHANNEL, tr("Нові серії та прем'єри", "New episodes and premieres", "Новые серии и премьеры"), NotificationManager.IMPORTANCE_DEFAULT)
             context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
@@ -85,10 +86,10 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 if (date != today && date != tomorrow) continue
                 val key = "tv:${e.tmdbId}:${next.seasonNumber}:${next.episodeNumber}:$date"
                 if (key in notified) continue
-                val whenText = if (date == today) "Сьогодні" else "Завтра"
                 notify(
                     e.tmdbId,
-                    "$whenText нова серія: ${e.displayTitle}",
+                    if (date == today) tr("Сьогодні нова серія: ${e.displayTitle}", "New episode today: ${e.displayTitle}", "Сегодня новая серия: ${e.displayTitle}")
+                    else tr("Завтра нова серія: ${e.displayTitle}", "New episode tomorrow: ${e.displayTitle}", "Завтра новая серия: ${e.displayTitle}"),
                     "S${next.seasonNumber}E${next.episodeNumber}" + (next.name?.let { " · «$it»" } ?: ""),
                 )
                 notified += key
@@ -97,7 +98,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 if (date != today) continue
                 val key = "movie:${e.tmdbId}:$date"
                 if (key in notified) continue
-                notify(e.tmdbId, "Сьогодні прем'єра: ${e.displayTitle}", "Фільм зі списку «Хочу подивитись» уже виходить 🎬")
+                notify(e.tmdbId, tr("Сьогодні прем'єра: ${e.displayTitle}", "Premiere today: ${e.displayTitle}", "Сегодня премьера: ${e.displayTitle}"),
+                    tr("Фільм зі списку «Хочу подивитись» уже виходить 🎬", "A movie from your “Want to watch” list is out now 🎬", "Фильм из списка «Хочу посмотреть» уже выходит 🎬"))
                 notified += key
             }
         }

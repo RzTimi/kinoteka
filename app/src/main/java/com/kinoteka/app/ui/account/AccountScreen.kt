@@ -66,12 +66,13 @@ import com.kinoteka.app.data.sync.DriveApi
 import com.kinoteka.app.data.sync.GoogleAuth
 import com.kinoteka.app.data.sync.SyncManager
 import com.kinoteka.app.data.sync.SyncState
+import com.kinoteka.app.i18n.I18n
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Запуск входа через Google: сначала тихая попытка, при необходимости —
@@ -103,8 +104,8 @@ fun rememberGoogleSignIn(sync: SyncManager): () -> Unit {
     }
 }
 
-private val timeFormat = DateTimeFormatter.ofPattern("d MMMM, HH:mm", Locale.forLanguageTag("uk"))
-fun formatSyncTime(ms: Long): String = timeFormat.format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
+fun formatSyncTime(ms: Long): String =
+    DateTimeFormatter.ofPattern("d MMMM, HH:mm", I18n.locale).format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,8 +118,8 @@ fun AccountScreen(onBack: () -> Unit) {
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Google Диск") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                title = { Text(tr("Google Диск", "Google Drive", "Google Диск")) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
             )
         },
     ) { padding ->
@@ -138,18 +139,50 @@ private fun SignedOutContent(state: SyncState, signIn: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(Icons.Default.CloudSync, null, Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(12.dp))
-        Text("Синхронізація з Google Диском", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(tr("Синхронізація з Google Диском", "Sync with Google Drive", "Синхронизация с Google Диском"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
     }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Benefit(Icons.Default.Restore, "Оцінки не загубляться", "Навіть якщо видалите застосунок або загубите телефон.")
-            Benefit(Icons.Default.Devices, "На кількох пристроях", "Увійдіть тим самим акаунтом, і все підтягнеться.")
-            Benefit(Icons.Default.FolderOpen, "Папка «${SyncManager.FOLDER_NAME}» на вашому Диску", "Там лежать оцінки (data.json) і свої постери.")
-            Benefit(Icons.Default.Lock, "Тільки своя папка", "Застосунок не бачить інших ваших файлів на Диску.")
+            Benefit(
+                Icons.Default.Restore,
+                tr("Оцінки не загубляться", "Your ratings won't get lost", "Оценки не потеряются"),
+                tr(
+                    "Навіть якщо видалите застосунок або загубите телефон.",
+                    "Even if you delete the app or lose your phone.",
+                    "Даже если удалите приложение или потеряете телефон.",
+                ),
+            )
+            Benefit(
+                Icons.Default.Devices,
+                tr("На кількох пристроях", "On multiple devices", "На нескольких устройствах"),
+                tr(
+                    "Увійдіть тим самим акаунтом, і все підтягнеться.",
+                    "Sign in with the same account and everything will sync over.",
+                    "Войдите тем же аккаунтом, и всё подтянется.",
+                ),
+            )
+            Benefit(
+                Icons.Default.FolderOpen,
+                tr("Папка «${SyncManager.FOLDER_NAME}» на вашому Диску", "A “${SyncManager.FOLDER_NAME}” folder on your Drive", "Папка «${SyncManager.FOLDER_NAME}» на вашем Диске"),
+                tr(
+                    "Там лежать оцінки (data.json) і свої постери.",
+                    "It holds your ratings (data.json) and custom posters.",
+                    "Там лежат оценки (data.json) и свои постеры.",
+                ),
+            )
+            Benefit(
+                Icons.Default.Lock,
+                tr("Тільки своя папка", "Only its own folder", "Только своя папка"),
+                tr(
+                    "Застосунок не бачить інших ваших файлів на Диску.",
+                    "The app can't see any of your other files on Drive.",
+                    "Приложение не видит других ваших файлов на Диске.",
+                ),
+            )
         }
     }
     state.error?.let { ErrorText(it) }
-    Button(onClick = signIn, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Увійти через Google") }
+    Button(onClick = signIn, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(tr("Увійти через Google", "Sign in with Google", "Войти через Google")) }
 }
 
 @Composable
@@ -188,14 +221,20 @@ private fun SignedInContent(state: SyncState, sync: SyncManager, signIn: () -> U
             Column {
                 Text(
                     when {
-                        state.syncing -> "Синхронізація…"
-                        state.lastSync != null -> "Синхронізовано: ${formatSyncTime(state.lastSync)}"
-                        else -> "Ще не синхронізовано"
+                        state.syncing -> tr("Синхронізація…", "Syncing…", "Синхронизация…")
+                        state.lastSync != null -> formatSyncTime(state.lastSync).let { t ->
+                            tr("Синхронізовано: $t", "Synced: $t", "Синхронизировано: $t")
+                        }
+                        else -> tr("Ще не синхронізовано", "Not synced yet", "Ещё не синхронизировано")
                     },
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
-                    "Зміни зберігаються на Диск автоматично через кілька секунд.",
+                    tr(
+                        "Зміни зберігаються на Диск автоматично через кілька секунд.",
+                        "Changes are saved to Drive automatically within a few seconds.",
+                        "Изменения сохраняются на Диск автоматически через несколько секунд.",
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -205,34 +244,42 @@ private fun SignedInContent(state: SyncState, sync: SyncManager, signIn: () -> U
 
     state.error?.let { ErrorText(it) }
     if (state.needsReauth) {
-        Button(onClick = signIn, modifier = Modifier.fillMaxWidth()) { Text("Увійти знову") }
+        Button(onClick = signIn, modifier = Modifier.fillMaxWidth()) { Text(tr("Увійти знову", "Sign in again", "Войти снова")) }
     }
 
     FilledTonalButton(onClick = sync::syncNow, enabled = !state.syncing, modifier = Modifier.fillMaxWidth()) {
         Icon(Icons.Default.Sync, null)
         Spacer(Modifier.width(8.dp))
-        Text("Синхронізувати зараз")
+        Text(tr("Синхронізувати зараз", "Sync now", "Синхронизировать сейчас"))
     }
     state.folderId?.let { id ->
         OutlinedButton(onClick = { uri.openUri(DriveApi.folderUrl(id)) }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.FolderOpen, null)
             Spacer(Modifier.width(8.dp))
-            Text("Відкрити папку на Диску")
+            Text(tr("Відкрити папку на Диску", "Open folder on Drive", "Открыть папку на Диске"))
         }
     }
     TextButton(onClick = { confirmSignOut = true }, modifier = Modifier.fillMaxWidth()) {
         Icon(Icons.AutoMirrored.Filled.Logout, null)
         Spacer(Modifier.width(8.dp))
-        Text("Вийти з акаунта")
+        Text(tr("Вийти з акаунта", "Sign out", "Выйти из аккаунта"))
     }
 
     if (confirmSignOut) {
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
-            title = { Text("Вийти з акаунта?") },
-            text = { Text("Синхронізація зупиниться. Ваші оцінки залишаться і на телефоні, і в папці «${SyncManager.FOLDER_NAME}» на Диску.") },
-            confirmButton = { TextButton(onClick = { confirmSignOut = false; sync.signOut() }) { Text("Вийти") } },
-            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Скасувати") } },
+            title = { Text(tr("Вийти з акаунта?", "Sign out?", "Выйти из аккаунта?")) },
+            text = {
+                Text(
+                    tr(
+                        "Синхронізація зупиниться. Ваші оцінки залишаться і на телефоні, і в папці «${SyncManager.FOLDER_NAME}» на Диску.",
+                        "Sync will stop. Your ratings will stay both on the phone and in the “${SyncManager.FOLDER_NAME}” folder on Drive.",
+                        "Синхронизация остановится. Ваши оценки останутся и на телефоне, и в папке «${SyncManager.FOLDER_NAME}» на Диске.",
+                    )
+                )
+            },
+            confirmButton = { TextButton(onClick = { confirmSignOut = false; sync.signOut() }) { Text(tr("Вийти", "Sign out", "Выйти")) } },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text(tr("Скасувати", "Cancel", "Отмена")) } },
         )
     }
 }
@@ -260,11 +307,17 @@ fun WelcomeSyncDialog(onSignIn: () -> Unit, onLater: () -> Unit) {
     AlertDialog(
         onDismissRequest = onLater,
         icon = { Icon(Icons.Default.CloudSync, null) },
-        title = { Text("Зберігати оцінки на Google Диску?") },
+        title = { Text(tr("Зберігати оцінки на Google Диску?", "Save your ratings to Google Drive?", "Сохранять оценки на Google Диске?")) },
         text = {
-            Text("Увійдіть через Google, і ваші оцінки, нотатки та свої постери зберігатимуться в папці «${SyncManager.FOLDER_NAME}» на вашому Диску. Так вони не загубляться і будуть доступні на інших телефонах.\n\nМожна зробити це пізніше: «Мої оцінки» → значок хмари.")
+            Text(
+                tr(
+                    "Увійдіть через Google, і ваші оцінки, нотатки та свої постери зберігатимуться в папці «${SyncManager.FOLDER_NAME}» на вашому Диску. Так вони не загубляться і будуть доступні на інших телефонах.\n\nМожна зробити це пізніше: «Мої оцінки» → значок хмари.",
+                    "Sign in with Google and your ratings, notes and custom posters will be saved in the “${SyncManager.FOLDER_NAME}” folder on your Drive. That way they won't get lost and will be available on your other phones.\n\nYou can do this later: “My ratings” → cloud icon.",
+                    "Войдите через Google, и ваши оценки, заметки и свои постеры будут храниться в папке «${SyncManager.FOLDER_NAME}» на вашем Диске. Так они не потеряются и будут доступны на других телефонах.\n\nМожно сделать это позже: «Мои оценки» → значок облака.",
+                )
+            )
         },
-        confirmButton = { Button(onClick = onSignIn) { Text("Увійти через Google") } },
-        dismissButton = { TextButton(onClick = onLater) { Text("Пізніше") } },
+        confirmButton = { Button(onClick = onSignIn) { Text(tr("Увійти через Google", "Sign in with Google", "Войти через Google")) } },
+        dismissButton = { TextButton(onClick = onLater) { Text(tr("Пізніше", "Later", "Позже")) } },
     )
 }

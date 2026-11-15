@@ -77,6 +77,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinoteka.app.data.library.PosterStorage
 import com.kinoteka.app.data.tmdb.ImageInfo
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ErrorBox
 import com.kinoteka.app.ui.components.LoadingBox
@@ -123,29 +124,31 @@ fun PosterEditor(
     if (open) {
         ModalBottomSheet(onDismissRequest = onClose) {
             Text(
-                if (backdrop) "Фон картки" else "Постер",
+                if (backdrop) tr("Фон картки", "Background", "Фон карточки") else tr("Постер", "Poster", "Постер"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
             SheetItem(
-                Icons.Default.PhotoLibrary, "З галереї телефону",
-                if (backdrop) "Оберіть фото та обріжте під широкий кадр" else "Оберіть фото та обріжте під постер",
+                Icons.Default.PhotoLibrary, tr("З галереї телефону", "From phone gallery", "Из галереи телефона"),
+                if (backdrop) tr("Оберіть фото та обріжте під широкий кадр", "Pick a photo and crop it to a wide frame", "Выберите фото и обрежьте под широкий кадр")
+                else tr("Оберіть фото та обріжте під постер", "Pick a photo and crop it to a poster", "Выберите фото и обрежьте под постер"),
             ) {
                 onClose()
                 picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
             SheetItem(
                 Icons.Default.Collections,
-                if (backdrop) "Інші кадри TMDB" else "Інші постери TMDB",
-                if (backdrop) "Кадри з фільму без тексту" else "Інші країни, перевидання, без тексту",
+                if (backdrop) tr("Інші кадри TMDB", "Other TMDB images", "Другие кадры TMDB") else tr("Інші постери TMDB", "Other TMDB posters", "Другие постеры TMDB"),
+                if (backdrop) tr("Кадри з фільму без тексту", "Stills from the movie without text", "Кадры из фильма без текста")
+                else tr("Інші країни, перевидання, без тексту", "Other countries, re-releases, no text", "Другие страны, переиздания, без текста"),
             ) {
                 onClose()
                 if (backdrop) vm.loadAltBackdrops() else vm.loadAltPosters()
                 showTmdb = true
             }
             if (customPoster != null) {
-                SheetItem(Icons.Default.Restore, "Повернути оригінал", null) {
+                SheetItem(Icons.Default.Restore, tr("Повернути оригінал", "Restore original", "Вернуть оригинал"), null) {
                     onClose()
                     if (backdrop) vm.resetBackdrop() else vm.resetPoster()
                 }
@@ -203,7 +206,7 @@ private fun SheetItem(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
 private fun languageLabel(lang: String?) = when (lang) {
     "uk" -> "UA"
     "en" -> "EN"
-    null -> "Без тексту"
+    null -> tr("Без тексту", "No text", "Без текста")
     else -> lang.uppercase()
 }
 
@@ -224,11 +227,11 @@ private fun TmdbPostersDialog(
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Обрати постер")
+                            Text(tr("Обрати постер", "Choose a poster", "Выбрать постер"))
                             Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     },
-                    navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.Close, "Закрити") } },
+                    navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Default.Close, tr("Закрити", "Close", "Закрыть")) } },
                 )
             },
         ) { padding ->
@@ -237,7 +240,7 @@ private fun TmdbPostersDialog(
                 UiState.Loading -> LoadingBox(modifier)
                 is UiState.Error -> ErrorBox(s.message, { vm.loadAltPosters(force = true) }, modifier)
                 is UiState.Success -> if (s.data.isEmpty()) {
-                    Box(modifier, contentAlignment = Alignment.Center) { Text("Інших постерів немає") }
+                    Box(modifier, contentAlignment = Alignment.Center) { Text(tr("Інших постерів немає", "No other posters", "Других постеров нет")) }
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(if (backdrop) 220.dp else 120.dp),
@@ -267,7 +270,7 @@ private fun AltPoster(img: ImageInfo, title: String, isSelected: Boolean, onClic
             ),
         )
         Text(
-            if (isSelected) "✓ Обрано" else languageLabel(img.language),
+            if (isSelected) tr("✓ Обрано", "✓ Selected", "✓ Выбрано") else languageLabel(img.language),
             style = MaterialTheme.typography.labelMedium,
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -288,7 +291,7 @@ private fun AltBackdrop(img: ImageInfo, isSelected: Boolean, onClick: () -> Unit
             com.kinoteka.app.data.tmdb.TmdbImages.backdrop(img.filePath, "w780"), null,
             contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
         )
-        if (isSelected) Text("✓ Обрано", color = Color.White, modifier = Modifier.align(Alignment.BottomStart).background(Color.Black.copy(alpha = 0.6f)).padding(6.dp))
+        if (isSelected) Text(tr("✓ Обрано", "✓ Selected", "✓ Выбрано"), color = Color.White, modifier = Modifier.align(Alignment.BottomStart).background(Color.Black.copy(alpha = 0.6f)).padding(6.dp))
     }
 }
 
@@ -299,7 +302,11 @@ internal fun CropDialog(bitmap: Bitmap, aspect: Float = 2f / 3f, onCancel: () ->
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding().navigationBarsPadding()) {
             Text(
-                "Перетягніть і збільшіть, щоб вибрати частину для постера",
+                tr(
+                    "Перетягніть і збільшіть, щоб вибрати частину для постера",
+                    "Drag and zoom to choose the part for the poster",
+                    "Перетащите и увеличьте, чтобы выбрать часть для постера",
+                ),
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyMedium,
@@ -365,8 +372,8 @@ internal fun CropDialog(bitmap: Bitmap, aspect: Float = 2f / 3f, onCancel: () ->
                 }
             }
             Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = onCancel) { Text("Скасувати", color = Color.White) }
-                Button(onClick = { cropRect?.let(onDone) }, modifier = Modifier.width(140.dp)) { Text("Готово") }
+                TextButton(onClick = onCancel) { Text(tr("Скасувати", "Cancel", "Отмена"), color = Color.White) }
+                Button(onClick = { cropRect?.let(onDone) }, modifier = Modifier.width(140.dp)) { Text(tr("Готово", "Done", "Готово")) }
             }
         }
     }

@@ -29,6 +29,7 @@ import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.SortOption
 import com.kinoteka.app.data.friendlyMessage
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.BrowseRoute
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.RouteParams
@@ -146,7 +147,7 @@ fun BrowseScreen(route: BrowseRoute, onBack: () -> Unit, onItem: (MediaCard) -> 
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") }
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) }
                     },
                 )
                 if (route.sortable) {
@@ -154,7 +155,7 @@ fun BrowseScreen(route: BrowseRoute, onBack: () -> Unit, onItem: (MediaCard) -> 
                 }
                 if (showCountries) {
                     Spacer(Modifier.height(4.dp))
-                    val options: List<Pair<String?, String>> = listOf<Pair<String?, String>>(null to "Усі країни") + section.countries
+                    val options: List<Pair<String?, String>> = listOf<Pair<String?, String>>(null to tr("Усі країни", "All countries", "Все страны")) + section.countries
                     ChipRow(options, options.first { it.first == state.country }, { it.second }, { vm.setCountry(it.first) })
                 }
             }
@@ -164,7 +165,7 @@ fun BrowseScreen(route: BrowseRoute, onBack: () -> Unit, onItem: (MediaCard) -> 
         when {
             state.loading -> LoadingBox(modifier)
             state.error != null -> ErrorBox(state.error!!, vm::reload, modifier)
-            state.items.isEmpty() && !state.hasMore -> EmptyBox("Нічого не знайдено", modifier)
+            state.items.isEmpty() && !state.hasMore -> EmptyBox(tr("Нічого не знайдено", "Nothing found", "Ничего не найдено"), modifier)
             else -> MediaGrid(
                 items = state.items,
                 onItem = onItem,

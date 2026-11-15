@@ -48,6 +48,7 @@ import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -113,25 +114,25 @@ fun ShareCardDialog(
                     year?.let { Text(it, color = Color(0xFFB7CBB1), style = MaterialTheme.typography.bodyMedium) }
                     Spacer(Modifier.height(10.dp))
                     if (rating != null) {
-                        Text("Моя оцінка: ${formatScore(rating)} / 10", color = Color(0xFFA5D86E), fontWeight = FontWeight.SemiBold)
+                        Text(tr("Моя оцінка: ${formatScore(rating)} / 10", "My rating: ${formatScore(rating)} / 10", "Моя оценка: ${formatScore(rating)} / 10"), color = Color(0xFFA5D86E), fontWeight = FontWeight.SemiBold)
                         SnakeRating(rating = rating, onRate = {}, onClear = {}, interactive = false)
                     } else {
-                        Text("Ще не оцінено", color = Color(0xFFB7CBB1))
+                        Text(tr("Ще не оцінено", "Not rated yet", "Ещё не оценено"), color = Color(0xFFB7CBB1))
                     }
                     if (!note.isNullOrBlank()) {
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "«$note»", color = Color(0xFFE2EEDA), fontStyle = FontStyle.Italic,
+                            tr("«$note»", "“$note”", "«$note»"), color = Color(0xFFE2EEDA), fontStyle = FontStyle.Italic,
                             textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis,
                         )
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("Кінотека 🐍", color = Color(0xFF83977E), style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Кінотека 🐍", "Kinoteka 🐍", "Кинотека 🐍"), color = Color(0xFF83977E), style = MaterialTheme.typography.labelLarge)
                 }
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = onDismiss) { Text("Закрити", color = Color.White) }
+                TextButton(onClick = onDismiss) { Text(tr("Закрити", "Close", "Закрыть"), color = Color.White) }
                 Button(
                     enabled = !busy,
                     onClick = {
@@ -149,10 +150,10 @@ fun ShareCardDialog(
                                 val send = Intent(Intent.ACTION_SEND).apply {
                                     type = "image/png"
                                     putExtra(Intent.EXTRA_STREAM, uri)
-                                    putExtra(Intent.EXTRA_TEXT, "$title — моя оцінка в Кінотеці 🐍")
+                                    putExtra(Intent.EXTRA_TEXT, tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"))
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                context.startActivity(Intent.createChooser(send, "Поділитися"))
+                                context.startActivity(Intent.createChooser(send, tr("Поділитися", "Share", "Поделиться")))
                             }
                             busy = false
                         }
@@ -160,7 +161,7 @@ fun ShareCardDialog(
                 ) {
                     Icon(Icons.Default.Share, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Надіслати")
+                    Text(tr("Надіслати", "Send", "Отправить"))
                 }
             }
         }

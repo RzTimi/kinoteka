@@ -37,7 +37,7 @@ interface TmdbApi {
         @Path("type") type: String,
         @Path("id") id: Int,
         @Query("append_to_response") append: String = "credits,videos,watch/providers,recommendations,similar,external_ids",
-        @Query("include_video_language") videoLanguages: String = "uk,en,null",
+        @Query("include_video_language") videoLanguages: String = "uk,ru,en,null",
         @Query("language") language: String? = null,
     ): TmdbDetails
 
@@ -69,7 +69,7 @@ interface TmdbApi {
     suspend fun images(
         @Path("type") type: String,
         @Path("id") id: Int,
-        @Query("include_image_language") languages: String = "uk,en,null",
+        @Query("include_image_language") languages: String = "uk,ru,en,null",
     ): ImagesResponse
 
     companion object {

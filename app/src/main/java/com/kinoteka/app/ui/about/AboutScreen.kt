@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kinoteka.app.BuildConfig
 import com.kinoteka.app.R
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.components.LocalLibrary
 
 private const val TMDB_URL = "https://www.themoviedb.org/"
@@ -69,8 +70,8 @@ fun AboutScreen(onBack: () -> Unit, onAccount: () -> Unit) {
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Про застосунок") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                title = { Text(tr("Про застосунок", "About", "О приложении")) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
             )
         },
     ) { padding ->
@@ -88,41 +89,61 @@ fun AboutScreen(onBack: () -> Unit, onAccount: () -> Unit) {
                         Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.size(96.dp))
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("Кінотека", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(tr("Кінотека", "Kinoteka", "Кинотека"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text(
-                        "Версія ${BuildConfig.VERSION_NAME}",
+                        tr("Версія ${BuildConfig.VERSION_NAME}", "Version ${BuildConfig.VERSION_NAME}", "Версия ${BuildConfig.VERSION_NAME}"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Каталог фільмів, серіалів, дорам, аніме, мультфільмів і документального кіно з вашими власними оцінками.",
+                        tr(
+                            "Каталог фільмів, серіалів, дорам, аніме, мультфільмів і документального кіно з вашими власними оцінками.",
+                            "A catalog of movies, TV shows, dramas, anime, cartoons and documentaries with your own ratings.",
+                            "Каталог фильмов, сериалов, дорам, аниме, мультфильмов и документального кино с вашими собственными оценками.",
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                     )
                 }
 
                 // Ваши данные
-                InfoCard("Ваші дані") {
-                    InfoRow(Icons.Default.Lock, "Оцінки, статуси, нотатки та свої постери зберігаються лише на цьому пристрої. Застосунок не збирає жодних даних про вас і не показує рекламу.")
+                InfoCard(tr("Ваші дані", "Your data", "Ваши данные")) {
+                    InfoRow(
+                        Icons.Default.Lock,
+                        tr(
+                            "Оцінки, статуси, нотатки та свої постери зберігаються лише на цьому пристрої. Застосунок не збирає жодних даних про вас і не показує рекламу.",
+                            "Ratings, statuses, notes and your own posters are stored only on this device. The app collects no data about you and shows no ads.",
+                            "Оценки, статусы, заметки и свои постеры хранятся только на этом устройстве. Приложение не собирает никаких данных о вас и не показывает рекламу.",
+                        ),
+                    )
                     Text(
-                        "У бібліотеці: ${library.size} · оцінено: $rated · своїх постерів: $customPosters",
+                        tr(
+                            "У бібліотеці: ${library.size} · оцінено: $rated · своїх постерів: $customPosters",
+                            "In library: ${library.size} · rated: $rated · custom posters: $customPosters",
+                            "В библиотеке: ${library.size} · оценено: $rated · своих постеров: $customPosters",
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 36.dp),
                     )
                     HorizontalDivider()
-                    LinkRow(Icons.Default.CloudSync, "Синхронізація з Google Диском", "Резервна копія та доступ з інших телефонів", onAccount)
+                    LinkRow(
+                        Icons.Default.CloudSync,
+                        tr("Синхронізація з Google Диском", "Sync with Google Drive", "Синхронизация с Google Диском"),
+                        tr("Резервна копія та доступ з інших телефонів", "Backup and access from other phones", "Резервная копия и доступ с других телефонов"),
+                        onAccount,
+                    )
                 }
 
                 // Источники данных (обязательная атрибуция TMDB и JustWatch)
-                InfoCard("Джерела даних") {
+                InfoCard(tr("Джерела даних", "Data sources", "Источники данных")) {
                     Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { uri.openUri(TMDB_URL) }.padding(vertical = 4.dp),
                     ) {
                         Image(painterResource(R.drawable.tmdb_logo), "TMDB", Modifier.height(20.dp))
                         Spacer(Modifier.height(8.dp))
-                        Text("Інформація про фільми й серіали, постери, фото та актори надані TMDB.", style = MaterialTheme.typography.bodyMedium)
+                        Text(tr("Інформація про фільми й серіали, постери, фото та актори надані TMDB.", "Movie and TV show information, posters, photos and cast are provided by TMDB.", "Информация о фильмах и сериалах, постеры, фото и актёры предоставлены TMDB."), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "This product uses the TMDB API but is not endorsed or certified by TMDB.",
@@ -130,24 +151,32 @@ fun AboutScreen(onBack: () -> Unit, onAccount: () -> Unit) {
                             fontStyle = FontStyle.Italic,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
+                        // Перевод обязательной английской атрибуции (в английском интерфейсе не нужен).
+                        val disclaimer = tr(
                             "Цей продукт використовує TMDB API, але не схвалений і не сертифікований TMDB.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "",
+                            "Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.",
                         )
+                        if (disclaimer.isNotEmpty()) {
+                            Text(
+                                disclaimer,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     HorizontalDivider()
-                    LinkRow(Icons.Default.Tv, "Де подивитись", "Дані про онлайн-кінотеатри надані JustWatch") { uri.openUri(JUSTWATCH_URL) }
-                    LinkRow(Icons.Default.PlayCircle, "Трейлери", "Відео відтворюються з YouTube") { uri.openUri(YOUTUBE_URL) }
+                    LinkRow(Icons.Default.Tv, tr("Де подивитись", "Where to watch", "Где посмотреть"), tr("Дані про онлайн-кінотеатри надані JustWatch", "Streaming service data provided by JustWatch", "Данные об онлайн-кинотеатрах предоставлены JustWatch")) { uri.openUri(JUSTWATCH_URL) }
+                    LinkRow(Icons.Default.PlayCircle, tr("Трейлери", "Trailers", "Трейлеры"), tr("Відео відтворюються з YouTube", "Videos play from YouTube", "Видео воспроизводятся с YouTube")) { uri.openUri(YOUTUBE_URL) }
                 }
 
                 // Проект
-                InfoCard("Проєкт") {
-                    LinkRow(Icons.Default.Code, "Вихідний код на GitHub", "github.com/RzTimi/kinoteka") { uri.openUri(GITHUB_URL) }
+                InfoCard(tr("Проєкт", "Project", "Проект")) {
+                    LinkRow(Icons.Default.Code, tr("Вихідний код на GitHub", "Source code on GitHub", "Исходный код на GitHub"), "github.com/RzTimi/kinoteka") { uri.openUri(GITHUB_URL) }
                 }
 
                 Text(
-                    "Зроблено в Україні 💙💛",
+                    tr("Зроблено в Україні 💙💛", "Made in Ukraine 💙💛", "Сделано в Украине 💙💛"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

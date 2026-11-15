@@ -98,6 +98,8 @@ import com.kinoteka.app.data.library.WatchStatus
 import com.kinoteka.app.data.mediaKey
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.toCard
+import com.kinoteka.app.i18n.plural
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.components.MediaRow
 import com.kinoteka.app.data.tmdb.CastMember
 import com.kinoteka.app.data.tmdb.Provider
@@ -338,7 +340,7 @@ private fun BackButton(onBack: () -> Unit) {
         IconButton(
             onClick = onBack,
             colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = Color.White),
-        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") }
+        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) }
     }
 }
 
@@ -422,12 +424,12 @@ private fun DetailsContent(
                         IconButton(
                             onClick = { shareDialog = true },
                             colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = Color.White),
-                        ) { Icon(Icons.Default.Share, "Поділитися") }
+                        ) { Icon(Icons.Default.Share, tr("Поділитися", "Share", "Поделиться")) }
                         Spacer(Modifier.width(8.dp))
                         IconButton(
                             onClick = { backdropMenu = true },
                             colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = Color.White),
-                        ) { Icon(Icons.Default.Wallpaper, "Змінити фон") }
+                        ) { Icon(Icons.Default.Wallpaper, tr("Змінити фон", "Change background", "Изменить фон")) }
                     }
                     Box(
                         Modifier.fillMaxSize().background(
@@ -451,7 +453,7 @@ private fun DetailsContent(
                                 .clip(CircleShape).background(Color.Black.copy(alpha = 0.6f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Default.Edit, "Змінити постер", tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Edit, tr("Змінити постер", "Change poster", "Изменить постер"), tint = Color.White, modifier = Modifier.size(16.dp))
                         }
                     }
                     Spacer(Modifier.width(16.dp))
@@ -463,7 +465,7 @@ private fun DetailsContent(
                         ) {
                             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
                             Spacer(Modifier.width(6.dp))
-                            Icon(Icons.Default.Edit, "Змінити назву", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Default.Edit, tr("Змінити назву", "Edit title", "Изменить название"), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (original != null) {
                             Text(original, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -476,7 +478,7 @@ private fun DetailsContent(
                                 Icon(Icons.Default.Star, null, tint = StarColor, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text(formatRating(d.voteAverage), fontWeight = FontWeight.Bold)
-                                Text("  TMDB · ${d.voteCount} голосів", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("  TMDB · ${d.voteCount} ${plural(d.voteCount, "голос|голоси|голосів", "vote|votes", "голос|голоса|голосов")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         // Ваша оценка — рядом с TMDB и IMDb.
@@ -486,7 +488,7 @@ private fun DetailsContent(
                                 Text("🐍", style = MaterialTheme.typography.bodyMedium)
                                 Spacer(Modifier.width(4.dp))
                                 Text(formatScore(my), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                Text("  моя оцінка", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("  " + tr("моя оцінка", "my rating", "моя оценка"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         if (imdbId != null) {
@@ -513,7 +515,7 @@ private fun DetailsContent(
         if (!d.tagline.isNullOrBlank() || !d.overview.isNullOrBlank()) item {
             Column(Modifier.padding(16.dp)) {
                 if (!d.tagline.isNullOrBlank()) {
-                    Text("«${d.tagline}»", fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("«${d.tagline}»", "“${d.tagline}”", "«${d.tagline}»"), fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
                 }
                 if (!d.overview.isNullOrBlank()) Text(d.overview, style = MaterialTheme.typography.bodyLarge)
@@ -522,7 +524,7 @@ private fun DetailsContent(
 
         val videos = youtubeVideos(d.videos?.results.orEmpty())
         if (videos.isNotEmpty()) {
-            item { SectionTitle("Трейлер і відео") }
+            item { SectionTitle(tr("Трейлер і відео", "Trailer and videos", "Трейлер и видео")) }
             item(key = "trailer") { TrailerSection(videos) }
         }
 
@@ -531,12 +533,12 @@ private fun DetailsContent(
             val stream = (providers.flatrate + providers.free + providers.ads).distinctBy { it.id }
             val buy = (providers.rent + providers.buy).distinctBy { it.id }.filter { p -> stream.none { it.id == p.id } }
             if (stream.isNotEmpty() || buy.isNotEmpty()) item {
-                SectionTitle("Де подивитись в Україні")
-                if (stream.isNotEmpty()) ProviderRow("За підпискою / безкоштовно", stream) { providers.link?.let(uri::openUri) }
-                if (buy.isNotEmpty()) ProviderRow("Оренда / купівля", buy) { providers.link?.let(uri::openUri) }
+                SectionTitle(tr("Де подивитись в Україні", "Where to watch in Ukraine", "Где посмотреть в Украине"))
+                if (stream.isNotEmpty()) ProviderRow(tr("За підпискою / безкоштовно", "Subscription / free", "По подписке / бесплатно"), stream) { providers.link?.let(uri::openUri) }
+                if (buy.isNotEmpty()) ProviderRow(tr("Оренда / купівля", "Rent / buy", "Аренда / покупка"), buy) { providers.link?.let(uri::openUri) }
                 // TMDB требует указывать JustWatch как источник этих данных.
                 Text(
-                    "Дані: JustWatch",
+                    tr("Дані: JustWatch", "Data: JustWatch", "Данные: JustWatch"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -549,7 +551,7 @@ private fun DetailsContent(
         if (type == MediaType.TV) {
             val seasons = d.seasons.filter { it.seasonNumber > 0 }
             if (seasons.isNotEmpty()) {
-                item { SectionTitle("Сезони і серії") }
+                item { SectionTitle(tr("Сезони і серії", "Seasons and episodes", "Сезоны и серии")) }
                 item { EpisodeProgress(d, entry, vm) }
                 items(seasons, key = { "s${it.seasonNumber}" }) { s ->
                     val done = entry?.episodes?.get(s.seasonNumber.toString())?.size ?: 0
@@ -560,16 +562,16 @@ private fun DetailsContent(
                         PosterImage(s.posterPath ?: d.posterPath, s.name ?: "", Modifier.width(48.dp), size = "w154")
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(s.name ?: "Сезон ${s.seasonNumber}", fontWeight = FontWeight.Medium)
+                            Text(s.name ?: tr("Сезон ${s.seasonNumber}", "Season ${s.seasonNumber}", "Сезон ${s.seasonNumber}"), fontWeight = FontWeight.Medium)
                             Text(
-                                listOfNotNull(s.airDate?.take(4), "${s.episodeCount} серій").joinToString(" · "),
+                                listOfNotNull(s.airDate?.take(4), "${s.episodeCount} ${plural(s.episodeCount, "серія|серії|серій", "episode|episodes", "серия|серии|серий")}").joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         when {
                             s.episodeCount > 0 && done >= s.episodeCount ->
-                                Icon(Icons.Default.CheckCircle, "Сезон переглянуто", tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.CheckCircle, tr("Сезон переглянуто", "Season watched", "Сезон просмотрен"), tint = MaterialTheme.colorScheme.primary)
                             done > 0 -> Text("$done/${s.episodeCount}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         }
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -580,7 +582,7 @@ private fun DetailsContent(
 
         val cast = d.credits?.cast.orEmpty().take(20)
         if (cast.isNotEmpty()) {
-            item { SectionTitle("Актори") }
+            item { SectionTitle(tr("Актори", "Cast", "Актёры")) }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(cast, key = { "${it.id}_${it.character}" }) { c -> CastItem(c) { onPerson(c.id) } }
@@ -597,11 +599,11 @@ private fun DetailsContent(
             .filter { it.posterPath != null && recs.none { r -> r.key == it.key } }
         if (recs.isNotEmpty()) item {
             Spacer(Modifier.height(20.dp))
-            MediaRow("Рекомендації", recs, onOpen, onMore = null)
+            MediaRow(tr("Рекомендації", "Recommendations", "Рекомендации"), recs, onOpen, onMore = null)
         }
         if (similar.isNotEmpty()) item {
             Spacer(Modifier.height(20.dp))
-            MediaRow("Схожі", similar, onOpen, onMore = null)
+            MediaRow(tr("Схожі", "Similar", "Похожие"), similar, onOpen, onMore = null)
         }
     }
 }
@@ -610,20 +612,20 @@ private fun infoLine(d: TmdbDetails, type: MediaType, section: Section): String 
     val parts = mutableListOf(section.title)
     if (type == MediaType.MOVIE) {
         d.year()?.let(parts::add)
-        d.runtime?.takeIf { it > 0 }?.let { parts += if (it >= 60) "${it / 60} год ${it % 60} хв" else "$it хв" }
+        d.runtime?.takeIf { it > 0 }?.let { parts += if (it >= 60) tr("${it / 60} год ${it % 60} хв", "${it / 60} h ${it % 60} min", "${it / 60} ч ${it % 60} мин") else tr("$it хв", "$it min", "$it мин") }
     } else {
         val start = d.firstAirDate?.take(4)
         val end = d.lastAirDate?.take(4)
         if (start != null) parts += if (d.status == "Ended" || d.status == "Canceled") {
             if (end != null && end != start) "$start–$end" else start
         } else "$start–"
-        d.numberOfSeasons?.let { parts += "$it сез." }
-        d.numberOfEpisodes?.let { parts += "$it сер." }
+        d.numberOfSeasons?.let { parts += tr("$it сез.", "$it seas.", "$it сез.") }
+        d.numberOfEpisodes?.let { parts += tr("$it сер.", "$it ep.", "$it сер.") }
         when (d.status) {
-            "Returning Series" -> parts += "Виходить"
-            "Ended" -> parts += "Завершено"
-            "Canceled" -> parts += "Скасовано"
-            "In Production" -> parts += "У виробництві"
+            "Returning Series" -> parts += tr("Виходить", "Ongoing", "Выходит")
+            "Ended" -> parts += tr("Завершено", "Ended", "Завершён")
+            "Canceled" -> parts += tr("Скасовано", "Canceled", "Отменён")
+            "In Production" -> parts += tr("У виробництві", "In production", "В производстве")
         }
     }
     d.originCountry.firstOrNull()?.let(parts::add)
@@ -643,9 +645,9 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateContentSize()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Моя оцінка", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(tr("Моя оцінка", "My rating", "Моя оценка"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Text(
-                    score?.let { "${formatScore(it)} / 10" } ?: "не оцінено",
+                    score?.let { "${formatScore(it)} / 10" } ?: tr("не оцінено", "not rated", "не оценено"),
                     style = MaterialTheme.typography.titleMedium,
                     color = if (score != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
@@ -657,7 +659,7 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                             Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                         }
-                        Text(if (expanded) "Готово" else "Змінити")
+                        Text(if (expanded) tr("Готово", "Done", "Готово") else tr("Змінити", "Edit", "Изменить"))
                     }
                 }
             }
@@ -668,7 +670,7 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                 SnakeRating(rating = score, onRate = {}, onClear = {}, interactive = false, height = 48.dp)
                 val selected = buildList {
                     entry?.status?.let { add(it.label) }
-                    if (entry?.favorite == true) add("❤ Улюблене")
+                    if (entry?.favorite == true) add(tr("❤ Улюблене", "❤ Favorite", "❤ Избранное"))
                     entry?.collections?.forEach { add("📁 $it") }
                 }
                 if (selected.isNotEmpty()) {
@@ -683,17 +685,21 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                 // ---- Полное меню ----
                 SnakeRating(rating = score, onRate = vm::setScore, onClear = { vm.setScore(null) })
                 Text(
-                    "Натисніть на змійку — ціла оцінка, проведіть пальцем — з десятими.",
+                    tr(
+                        "Натисніть на змійку — ціла оцінка, проведіть пальцем — з десятими.",
+                        "Tap the snake for a whole rating, swipe for tenths.",
+                        "Нажмите на змейку — целая оценка, проведите пальцем — с десятыми.",
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 // Точная подстройка ±0,1.
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = { vm.nudgeScore(-0.1) }, enabled = score != null && score > 1.0) { Text("−0,1") }
+                    OutlinedButton(onClick = { vm.nudgeScore(-0.1) }, enabled = score != null && score > 1.0) { Text(tr("−0,1", "−0.1", "−0,1")) }
                     Spacer(Modifier.width(8.dp))
-                    OutlinedButton(onClick = { vm.nudgeScore(+0.1) }, enabled = score == null || score < 10.0) { Text("+0,1") }
+                    OutlinedButton(onClick = { vm.nudgeScore(+0.1) }, enabled = score == null || score < 10.0) { Text(tr("+0,1", "+0.1", "+0,1")) }
                     Spacer(Modifier.weight(1f))
-                    if (score != null) TextButton(onClick = { vm.setScore(null) }) { Text("Скинути") }
+                    if (score != null) TextButton(onClick = { vm.setScore(null) }) { Text(tr("Скинути", "Reset", "Сбросить")) }
                 }
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -705,7 +711,7 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                     FilterChip(
                         selected = fav,
                         onClick = vm::toggleFavorite,
-                        label = { Text("Улюблене") },
+                        label = { Text(tr("Улюблене", "Favorite", "Избранное")) },
                         leadingIcon = {
                             Icon(
                                 if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -733,7 +739,7 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                 ) {
                     Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
-                    Text("Додати нотатку", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Додати нотатку", "Add a note", "Добавить заметку"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 Spacer(Modifier.height(16.dp))
@@ -745,19 +751,19 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
         var text by remember { mutableStateOf(entry?.note.orEmpty()) }
         AlertDialog(
             onDismissRequest = { noteDialog = false },
-            title = { Text("Моя нотатка") },
+            title = { Text(tr("Моя нотатка", "My note", "Моя заметка")) },
             text = {
-                OutlinedTextField(text, { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("Що сподобалось, з ким дивились…") })
+                OutlinedTextField(text, { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text(tr("Що сподобалось, з ким дивились…", "What you liked, who you watched it with…", "Что понравилось, с кем смотрели…")) })
             },
-            confirmButton = { TextButton(onClick = { vm.setNote(text); noteDialog = false }) { Text("Зберегти") } },
+            confirmButton = { TextButton(onClick = { vm.setNote(text); noteDialog = false }) { Text(tr("Зберегти", "Save", "Сохранить")) } },
             dismissButton = {
                 Row {
                     if (!entry?.note.isNullOrBlank()) {
                         TextButton(onClick = { vm.setNote(""); noteDialog = false }) {
-                            Text("Видалити", color = MaterialTheme.colorScheme.error)
+                            Text(tr("Видалити", "Delete", "Удалить"), color = MaterialTheme.colorScheme.error)
                         }
                     }
-                    TextButton(onClick = { noteDialog = false }) { Text("Скасувати") }
+                    TextButton(onClick = { noteDialog = false }) { Text(tr("Скасувати", "Cancel", "Отмена")) }
                 }
             },
         )
@@ -781,13 +787,13 @@ private fun NoteBlock(note: String, onEdit: () -> Unit) {
                 Icon(Icons.Default.FormatQuote, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "Моя нотатка",
+                    tr("Моя нотатка", "My note", "Моя заметка"),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                 )
-                Icon(Icons.Default.Edit, "Змінити нотатку", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.Edit, tr("Змінити нотатку", "Edit note", "Изменить заметку"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(6.dp))
             Text(note, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -831,19 +837,19 @@ private fun CustomTitleDialog(current: String, hasCustom: Boolean, onSave: (Stri
     var text by remember { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Своя назва") },
+        title = { Text(tr("Своя назва", "Custom title", "Своё название")) },
         text = {
             Column {
-                Text("Наприклад, оригінальна назва або як ви його називаєте.", style = MaterialTheme.typography.bodySmall)
+                Text(tr("Наприклад, оригінальна назва або як ви його називаєте.", "For example, the original title or what you call it.", "Например, оригинальное название или как вы его называете."), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(text, { text = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(text) }, enabled = text.isNotBlank()) { Text("Зберегти") } },
+        confirmButton = { TextButton(onClick = { onSave(text) }, enabled = text.isNotBlank()) { Text(tr("Зберегти", "Save", "Сохранить")) } },
         dismissButton = {
             Row {
-                if (hasCustom) TextButton(onClick = onReset) { Text("Скинути") }
-                TextButton(onClick = onDismiss) { Text("Скасувати") }
+                if (hasCustom) TextButton(onClick = onReset) { Text(tr("Скинути", "Reset", "Сбросить")) }
+                TextButton(onClick = onDismiss) { Text(tr("Скасувати", "Cancel", "Отмена")) }
             }
         },
     )
@@ -865,7 +871,7 @@ private fun EpisodeProgress(d: TmdbDetails, entry: LibraryEntry?, vm: DetailsVie
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Переглянуто $watched з $total серій", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(tr("Переглянуто $watched з $total", "Watched $watched of $total", "Просмотрено $watched из $total") + " " + plural(total, "серії|серій|серій", "episode|episodes", "серии|серий|серий"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (total > 0) Text("${watched * 100 / total}%", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
@@ -878,12 +884,16 @@ private fun EpisodeProgress(d: TmdbDetails, entry: LibraryEntry?, vm: DetailsVie
                 FilledTonalButton(onClick = { vm.toggleEpisode(next.first, next.second) }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Check, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Переглянув S${next.first}E${next.second}")
+                    Text(tr("Переглянув S${next.first}E${next.second}", "Watched S${next.first}E${next.second}", "Посмотрел S${next.first}E${next.second}"))
                 }
             } else if (watched > 0 && d.nextEpisode != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Наступна серія S${d.nextEpisode.seasonNumber}E${d.nextEpisode.episodeNumber} вийде ${d.nextEpisode.airDate.orEmpty()}",
+                    tr(
+                        "Наступна серія S${d.nextEpisode.seasonNumber}E${d.nextEpisode.episodeNumber} вийде ${d.nextEpisode.airDate.orEmpty()}",
+                        "Next episode S${d.nextEpisode.seasonNumber}E${d.nextEpisode.episodeNumber} airs ${d.nextEpisode.airDate.orEmpty()}",
+                        "Следующая серия S${d.nextEpisode.seasonNumber}E${d.nextEpisode.episodeNumber} выйдет ${d.nextEpisode.airDate.orEmpty()}",
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -908,10 +918,11 @@ private fun ImdbBadge(rating: Pair<String, String>?, onClick: () -> Unit) {
         if (rating != null) {
             Text(rating.first, fontWeight = FontWeight.Bold)
             if (rating.second.isNotBlank()) {
-                Text("  · ${rating.second} голосів", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val votes = rating.second.filter { it.isDigit() }.toIntOrNull() ?: 0
+                Text("  · ${rating.second} ${plural(votes, "голос|голоси|голосів", "vote|votes", "голос|голоса|голосов")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
-            Text("Відкрити на IMDb", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("Відкрити на IMDb", "Open on IMDb", "Открыть на IMDb"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

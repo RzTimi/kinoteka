@@ -11,6 +11,7 @@ import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Scope
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -61,11 +62,11 @@ class GoogleAuth(context: Context) {
         /** Понятное сообщение об ошибке входа. */
         fun describe(e: Throwable): String = when {
             e is ApiException && e.statusCode == CommonStatusCodes.DEVELOPER_ERROR ->
-                "Google ще не налаштований для цього застосунку (OAuth-клієнт Android і SHA-1 у Google Cloud)"
-            e is ApiException && e.statusCode == CommonStatusCodes.NETWORK_ERROR -> "Немає з'єднання з інтернетом"
-            e is ApiException && e.statusCode == CommonStatusCodes.CANCELED -> "Вхід скасовано"
-            e is ApiException -> "Помилка входу Google (код ${e.statusCode})"
-            else -> e.message ?: "Помилка входу"
+                tr("Google ще не налаштований для цього застосунку (OAuth-клієнт Android і SHA-1 у Google Cloud)", "Google isn't set up for this app yet (Android OAuth client and SHA-1 in Google Cloud)", "Google ещё не настроен для этого приложения (OAuth-клиент Android и SHA-1 в Google Cloud)")
+            e is ApiException && e.statusCode == CommonStatusCodes.NETWORK_ERROR -> tr("Немає з'єднання з інтернетом", "No internet connection", "Нет подключения к интернету")
+            e is ApiException && e.statusCode == CommonStatusCodes.CANCELED -> tr("Вхід скасовано", "Sign-in canceled", "Вход отменён")
+            e is ApiException -> tr("Помилка входу Google (код ${e.statusCode})", "Google sign-in error (code ${e.statusCode})", "Ошибка входа Google (код ${e.statusCode})")
+            else -> e.message ?: tr("Помилка входу", "Sign-in error", "Ошибка входа")
         }
     }
 }

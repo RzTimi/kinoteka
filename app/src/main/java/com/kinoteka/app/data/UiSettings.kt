@@ -1,31 +1,40 @@
 package com.kinoteka.app.data
 
 import android.content.Context
+import com.kinoteka.app.i18n.AppLanguage
+import com.kinoteka.app.i18n.I18n
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Размер интерфейса: множитель для всего сразу (текст, кнопки, постеры). */
-enum class UiScale(val label: String, val factor: Float) {
-    NORMAL("Звичайний", 1.0f),
-    LARGE("Великий", 1.15f),
-    XLARGE("Дуже великий", 1.3f),
+enum class UiScale(private val uk: String, private val en: String, private val ru: String, val factor: Float) {
+    NORMAL("Звичайний", "Normal", "Обычный", 1.0f),
+    LARGE("Великий", "Large", "Крупный", 1.15f),
+    XLARGE("Дуже великий", "Extra large", "Очень крупный", 1.3f);
+
+    val label: String get() = tr(uk, en, ru)
 }
 
 /** Тема оформления. */
-enum class AppTheme(val label: String) {
-    SYSTEM("Системна"),
-    LIGHT("Світла"),
-    DARK("Темна"),
-    JUNGLE("Джунглі"),
+enum class AppTheme(private val uk: String, private val en: String, private val ru: String) {
+    SYSTEM("Системна", "System", "Системная"),
+    LIGHT("Світла", "Light", "Светлая"),
+    DARK("Темна", "Dark", "Тёмная"),
+    JUNGLE("Джунглі", "Jungle", "Джунгли");
+
+    val label: String get() = tr(uk, en, ru)
 }
 
 /** Как выглядят кнопки разделов (Фільми, Серіали…). */
-enum class SectionStyle(val label: String) {
-    CHIPS("Таблетки"),
-    CHIPS_ICONS("Таблетки з іконками"),
-    TABS("Вкладки"),
-    TILES("Плитки"),
+enum class SectionStyle(private val uk: String, private val en: String, private val ru: String) {
+    CHIPS("Таблетки", "Pills", "Таблетки"),
+    CHIPS_ICONS("Таблетки з іконками", "Pills with icons", "Таблетки с иконками"),
+    TABS("Вкладки", "Tabs", "Вкладки"),
+    TILES("Плитки", "Tiles", "Плитки");
+
+    val label: String get() = tr(uk, en, ru)
 }
 
 /** Настройки внешнего вида, хранятся на телефоне. */
@@ -56,13 +65,27 @@ class UiSettings(context: Context) {
         prefs.edit().putBoolean(KEY_REMINDERS, value).apply()
     }
 
-    private val _contentLanguage = MutableStateFlow(prefs.getString(KEY_LANGUAGE, null) ?: "uk-UA")
-    /** Язык данных TMDB: названия, описания, жанры. */
+    /** Язык приложения (интерфейс + данные TMDB). Старое «content_language» переносим. */
+    private val _appLanguage = MutableStateFlow(
+        AppLanguage.fromCode(prefs.getString(KEY_APP_LANGUAGE, null))
+            ?: AppLanguage.entries.firstOrNull { it.tmdb == prefs.getString(KEY_LANGUAGE, null) }
+            ?: AppLanguage.UK
+    )
+    val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+    private val _contentLanguage = MutableStateFlow(_appLanguage.value.tmdb)
+    /** Язык данных TMDB: названия, описания, жанры (следует за языком приложения). */
     val contentLanguage: StateFlow<String> = _contentLanguage.asStateFlow()
 
-    fun setContentLanguage(value: String) {
-        _contentLanguage.value = value
-        prefs.edit().putString(KEY_LANGUAGE, value).apply()
+    init {
+        I18n.language = _appLanguage.value
+    }
+
+    fun setAppLanguage(value: AppLanguage) {
+        _appLanguage.value = value
+        I18n.language = value
+        _contentLanguage.value = value.tmdb
+        prefs.edit().putString(KEY_APP_LANGUAGE, value.code).apply()
     }
 
     private val _sectionStyle = MutableStateFlow(
@@ -136,6 +159,7 @@ class UiSettings(context: Context) {
         const val KEY_THEME = "theme"
         const val KEY_REMINDERS = "reminders"
         const val KEY_LANGUAGE = "content_language"
+        const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_STYLE = "section_style"
         const val KEY_ORDER = "section_order"
         const val KEY_HIDDEN = "section_hidden"

@@ -60,6 +60,7 @@ import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.WatchStatus
 import com.kinoteka.app.data.library.formatScore
 import com.kinoteka.app.data.mediaKey
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ChipRow
 import com.kinoteka.app.ui.components.LocalLibrary
@@ -86,12 +87,12 @@ fun ManualScreen(key: String?, onBack: () -> Unit) {
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text(if (key == null) "Додати фільм вручну" else if (editing) "Редагування" else entry?.displayTitle.orEmpty()) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                title = { Text(if (key == null) tr("Додати фільм вручну", "Add a movie manually", "Добавить фильм вручную") else if (editing) tr("Редагування", "Editing", "Редактирование") else entry?.displayTitle.orEmpty()) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
                 actions = {
                     if (entry != null && !editing) {
-                        IconButton(onClick = { editing = true }) { Icon(Icons.Default.Edit, "Редагувати") }
-                        IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Видалити") }
+                        IconButton(onClick = { editing = true }) { Icon(Icons.Default.Edit, tr("Редагувати", "Edit", "Редактировать")) }
+                        IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, tr("Видалити", "Delete", "Удалить")) }
                     }
                 },
             )
@@ -122,17 +123,17 @@ fun ManualScreen(key: String?, onBack: () -> Unit) {
     if (confirmDelete && entry != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Видалити «${entry.displayTitle}»?") },
-            text = { Text("Фільм буде видалено з бібліотеки разом з оцінкою і нотаткою.") },
+            title = { Text(tr("Видалити «${entry.displayTitle}»?", "Delete “${entry.displayTitle}”?", "Удалить «${entry.displayTitle}»?")) },
+            text = { Text(tr("Фільм буде видалено з бібліотеки разом з оцінкою і нотаткою.", "The movie will be removed from your library along with your rating and note.", "Фильм будет удалён из библиотеки вместе с оценкой и заметкой.")) },
             confirmButton = {
                 TextButton(onClick = {
                     container.posters.deleteIfLocal(entry.customPoster)
                     library.remove(entry.key)
                     confirmDelete = false
                     onBack()
-                }) { Text("Видалити") }
+                }) { Text(tr("Видалити", "Delete", "Удалить")) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Скасувати") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(tr("Скасувати", "Cancel", "Отмена")) } },
         )
     }
 }
@@ -161,28 +162,28 @@ private fun ManualForm(existing: LibraryEntry?, onSave: (LibraryEntry) -> Unit) 
         Box(Modifier.width(120.dp).clip(RoundedCornerShape(10.dp)).clickable {
             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }) {
-            PosterImage(null, if (poster == null) "Натисніть, щоб додати постер" else title, Modifier.fillMaxWidth(), custom = poster)
+            PosterImage(null, if (poster == null) tr("Натисніть, щоб додати постер", "Tap to add a poster", "Нажмите, чтобы добавить постер") else title, Modifier.fillMaxWidth(), custom = poster)
         }
         Spacer(Modifier.width(16.dp))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (existing == null) {
-                Text("Тип", style = MaterialTheme.typography.labelLarge)
-                ChipRow(listOf(MediaType.MOVIE, MediaType.TV), type, { if (it == MediaType.MOVIE) "Фільм" else "Серіал" }, { type = it })
+                Text(tr("Тип", "Type", "Тип"), style = MaterialTheme.typography.labelLarge)
+                ChipRow(listOf(MediaType.MOVIE, MediaType.TV), type, { if (it == MediaType.MOVIE) tr("Фільм", "Movie", "Фильм") else tr("Серіал", "TV Show", "Сериал") }, { type = it })
             }
-            OutlinedTextField(title, { title = it }, label = { Text("Назва") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(title, { title = it }, label = { Text(tr("Назва", "Title", "Название")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(
-                year, { v -> year = v.filter { it.isDigit() }.take(4) }, label = { Text("Рік") }, singleLine = true,
+                year, { v -> year = v.filter { it.isDigit() }.take(4) }, label = { Text(tr("Рік", "Year", "Год")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(120.dp),
             )
         }
     }
-    Text("Розділ", style = MaterialTheme.typography.labelLarge)
+    Text(tr("Розділ", "Section", "Раздел"), style = MaterialTheme.typography.labelLarge)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Section.entries.filter { it.isBase }.forEach { s ->
             FilterChip(selected = s.name == sectionName, onClick = { sectionName = s.name }, label = { Text(s.title) })
         }
     }
-    OutlinedTextField(overview, { overview = it }, label = { Text("Опис (необов'язково)") }, minLines = 3, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(overview, { overview = it }, label = { Text(tr("Опис (необов'язково)", "Description (optional)", "Описание (необязательно)")) }, minLines = 3, modifier = Modifier.fillMaxWidth())
     Button(
         onClick = {
             onSave(
@@ -201,7 +202,7 @@ private fun ManualForm(existing: LibraryEntry?, onSave: (LibraryEntry) -> Unit) 
         },
         enabled = title.isNotBlank(),
         modifier = Modifier.fillMaxWidth().height(52.dp),
-    ) { Text(if (existing == null) "Додати в бібліотеку" else "Зберегти") }
+    ) { Text(if (existing == null) tr("Додати в бібліотеку", "Add to library", "Добавить в библиотеку") else tr("Зберегти", "Save", "Сохранить")) }
 
     cropBitmap?.let { bmp ->
         CropDialog(bitmap = bmp, onCancel = { cropBitmap = null }, onDone = { rect ->
@@ -227,7 +228,7 @@ private fun ManualView(e: LibraryEntry) {
         Column {
             Text(e.displayTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                listOfNotNull(e.sectionEnum.title, e.year, "додано вручну").joinToString(" · "),
+                listOfNotNull(e.sectionEnum.title, e.year, tr("додано вручну", "added manually", "добавлено вручную")).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -235,8 +236,8 @@ private fun ManualView(e: LibraryEntry) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Моя оцінка", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text(e.score?.let { "${formatScore(it)} / 10" } ?: "не оцінено", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text(tr("Моя оцінка", "My rating", "Моя оценка"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(e.score?.let { "${formatScore(it)} / 10" } ?: tr("не оцінено", "not rated", "не оценено"), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
             SnakeRating(
                 rating = e.score,
@@ -253,7 +254,7 @@ private fun ManualView(e: LibraryEntry) {
                         label = { Text(st.label) },
                     )
                 }
-                FilterChip(selected = e.favorite, onClick = { edit { it.copy(favorite = !it.favorite) } }, label = { Text("❤ Улюблене") })
+                FilterChip(selected = e.favorite, onClick = { edit { it.copy(favorite = !it.favorite) } }, label = { Text(tr("❤ Улюблене", "❤ Favorite", "❤ Избранное")) })
             }
             Spacer(Modifier.height(8.dp))
             CollectionsRow(
@@ -268,11 +269,11 @@ private fun ManualView(e: LibraryEntry) {
     OutlinedTextField(
         value = note,
         onValueChange = { note = it },
-        label = { Text("Моя нотатка") },
+        label = { Text(tr("Моя нотатка", "My note", "Моя заметка")) },
         minLines = 2,
         modifier = Modifier.fillMaxWidth(),
     )
     if (note != e.note) {
-        TextButton(onClick = { edit { it.copy(note = note.trim()) } }) { Text("Зберегти нотатку") }
+        TextButton(onClick = { edit { it.copy(note = note.trim()) } }) { Text(tr("Зберегти нотатку", "Save note", "Сохранить заметку")) }
     }
 }

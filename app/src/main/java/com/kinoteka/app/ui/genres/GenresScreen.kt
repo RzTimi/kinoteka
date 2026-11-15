@@ -38,6 +38,7 @@ import com.kinoteka.app.data.friendlyMessage
 import com.kinoteka.app.data.GenreOption
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ChipRow
 import com.kinoteka.app.ui.components.ErrorBox
@@ -68,8 +69,8 @@ class GenresViewModel(
 }
 
 private fun typeLabel(section: Section, type: MediaType) = when (type) {
-    MediaType.TV -> if (section == Section.CARTOONS) "Мультсеріали" else "Серіали"
-    MediaType.MOVIE -> if (section == Section.CARTOONS) "Мультфільми" else "Фільми"
+    MediaType.TV -> if (section == Section.CARTOONS) tr("Мультсеріали", "Animated series", "Мультсериалы") else tr("Серіали", "TV Shows", "Сериалы")
+    MediaType.MOVIE -> if (section == Section.CARTOONS) tr("Мультфільми", "Cartoons", "Мультфильмы") else tr("Фільми", "Movies", "Фильмы")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,7 +92,7 @@ fun GenresScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column {
-                TopAppBar(title = { Text("Жанри", fontWeight = FontWeight.Bold) })
+                TopAppBar(title = { Text(tr("Жанри", "Genres", "Жанры"), fontWeight = FontWeight.Bold) })
                 SectionChips(selected = section, onSelect = { it?.let(onSection) })
                 if (section.types.size > 1) {
                     Spacer(Modifier.height(4.dp))
@@ -117,17 +118,17 @@ fun GenresScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    GenreTile("Усі ${typeLabel(section, type).lowercase()}", highlighted = true) {
-                        onOpen(type, "${section.title}: усі", emptyMap())
+                    GenreTile(tr("Усі ${typeLabel(section, type).lowercase()}", "All ${typeLabel(section, type)}", "Все ${typeLabel(section, type).lowercase()}"), highlighted = true) {
+                        onOpen(type, tr("${section.title}: усі", "${section.title}: all", "${section.title}: все"), emptyMap())
                     }
                 }
                 genreGroup("", s.data.filter { it.kind == GenreOption.Kind.GENRE }) { onOpen(type, it.name, it.params) }
                 genreGroup(
-                    "Підбірки за темою",
+                    tr("Підбірки за темою", "Themed collections", "Подборки по теме"),
                     s.data.filter { it.kind == GenreOption.Kind.KEYWORD },
-                    hint = "У серіалів TMDB немає таких жанрів, тому шукаємо за ключовими словами",
+                    hint = tr("У серіалів TMDB немає таких жанрів, тому шукаємо за ключовими словами", "TMDB has no such genres for TV shows, so we search by keywords", "У сериалов в TMDB нет таких жанров, поэтому ищем по ключевым словам"),
                 ) { onOpen(type, it.name, it.params) }
-                genreGroup("Інше", s.data.filter { it.kind == GenreOption.Kind.EXTRA }) { onOpen(type, it.name, it.params) }
+                genreGroup(tr("Інше", "Other", "Другое"), s.data.filter { it.kind == GenreOption.Kind.EXTRA }) { onOpen(type, it.name, it.params) }
             }
         }
     }

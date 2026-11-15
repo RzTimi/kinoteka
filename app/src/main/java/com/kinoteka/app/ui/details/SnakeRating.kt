@@ -21,6 +21,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.kinoteka.app.i18n.tr
 import kotlin.math.PI
 import kotlin.math.floor
 import kotlin.math.sin
@@ -79,7 +80,7 @@ fun SnakeRating(
         modifier
             .fillMaxWidth()
             .height(height)
-            .semantics { contentDescription = rating?.let { "Моя оцінка: ${formatScoreText(it)} з 10" } ?: "Оцінка не поставлена" }
+            .semantics { contentDescription = rating?.let { tr("Моя оцінка: ${formatScoreText(it)} з 10", "My rating: ${formatScoreText(it)} out of 10", "Моя оценка: ${formatScoreText(it)} из 10") } ?: tr("Оцінка не поставлена", "Not rated", "Оценка не поставлена") }
             .then(gestures)
     ) {
         val slotW = size.width / (SLOTS + RIGHT_SPACE)

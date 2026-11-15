@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kinoteka</string>
+    <string name="widget_description">What to watch today and the shows you are watching</string>
+</resources>

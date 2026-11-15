@@ -29,6 +29,7 @@ import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.WatchStatus
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -143,15 +144,21 @@ fun ImportDialog(onDismiss: () -> Unit) {
             }
             container.library.addAll(added)
             result = buildString {
-                append("Додано: ${added.size} з ${rows.size}.")
+                append(tr("Додано: ${added.size} з ${rows.size}.", "Added: ${added.size} of ${rows.size}.", "Добавлено: ${added.size} из ${rows.size}."))
                 val skipped = rows.size - added.size - notFound.size
-                if (skipped > 0) append("\nУже були в бібліотеці: $skipped.")
+                if (skipped > 0) append(tr("\nУже були в бібліотеці: $skipped.", "\nAlready in library: $skipped.", "\nУже были в библиотеке: $skipped."))
                 if (notFound.isNotEmpty()) {
-                    append("\nНе знайдено (${notFound.size}): ")
+                    append(tr("\nНе знайдено (${notFound.size}): ", "\nNot found (${notFound.size}): ", "\nНе найдено (${notFound.size}): "))
                     append(notFound.take(20).joinToString(", "))
                     if (notFound.size > 20) append("…")
                 }
-                if (rows.isEmpty()) append("\nУ файлі не знайшлося рядків. Перевірте, що це CSV з колонкою назви.")
+                if (rows.isEmpty()) append(
+                    tr(
+                        "\nУ файлі не знайшлося рядків. Перевірте, що це CSV з колонкою назви.",
+                        "\nNo rows found in the file. Make sure it's a CSV with a title column.",
+                        "\nВ файле не нашлось строк. Проверьте, что это CSV с колонкой названия.",
+                    )
+                )
             }
             running = false
         }
@@ -159,25 +166,41 @@ fun ImportDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = { if (!running) onDismiss() },
-        title = { Text("Імпорт оцінок") },
+        title = { Text(tr("Імпорт оцінок", "Import ratings", "Импорт оценок")) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 when {
                     running -> {
-                        Text("Шукаю фільми в TMDB: $done з $total…")
+                        Text(tr("Шукаю фільми в TMDB: $done з $total…", "Looking up movies on TMDB: $done of $total…", "Ищу фильмы в TMDB: $done из $total…"))
                         Spacer(Modifier.height(10.dp))
                         LinearProgressIndicator(progress = { if (total == 0) 0f else done.toFloat() / total }, modifier = Modifier.fillMaxWidth())
                     }
                     result != null -> Text(result!!)
                     else -> {
                         Text("Letterboxd", style = MaterialTheme.typography.titleSmall)
-                        Text("letterboxd.com → Settings → Import & Export → Export your data. У архіві оберіть ratings.csv (з оцінками) або watched.csv.")
+                        Text(
+                            tr(
+                                "letterboxd.com → Settings → Import & Export → Export your data. У архіві оберіть ratings.csv (з оцінками) або watched.csv.",
+                                "letterboxd.com → Settings → Import & Export → Export your data. In the archive, pick ratings.csv (with ratings) or watched.csv.",
+                                "letterboxd.com → Settings → Import & Export → Export your data. В архиве выберите ratings.csv (с оценками) или watched.csv.",
+                            )
+                        )
                         Spacer(Modifier.height(10.dp))
-                        Text("Кінопошук та інші", style = MaterialTheme.typography.titleSmall)
-                        Text("CSV-файл з колонками «Назва», «Рік», «Оцінка» (1–10). Такий файл можна зробити в Excel або Google Таблицях.")
+                        Text(tr("Кінопошук та інші", "Kinopoisk and others", "Кинопоиск и другие"), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            tr(
+                                "CSV-файл з колонками «Назва», «Рік», «Оцінка» (1–10). Такий файл можна зробити в Excel або Google Таблицях.",
+                                "A CSV file with “Title”, “Year”, “Rating” (1–10) columns. You can make one in Excel or Google Sheets.",
+                                "CSV-файл с колонками «Название», «Год», «Оценка» (1–10). Такой файл можно сделать в Excel или Google Таблицах.",
+                            )
+                        )
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            "Фільми знаходяться в TMDB за назвою і роком. Оцінки з Letterboxd (0,5–5) перераховуються у 1–10.",
+                            tr(
+                                "Фільми знаходяться в TMDB за назвою і роком. Оцінки з Letterboxd (0,5–5) перераховуються у 1–10.",
+                                "Movies are matched on TMDB by title and year. Letterboxd ratings (0.5–5) are converted to 1–10.",
+                                "Фильмы ищутся в TMDB по названию и году. Оценки из Letterboxd (0,5–5) пересчитываются в 1–10.",
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -188,12 +211,12 @@ fun ImportDialog(onDismiss: () -> Unit) {
         confirmButton = {
             when {
                 running -> {}
-                result != null -> TextButton(onClick = onDismiss) { Text("Готово") }
+                result != null -> TextButton(onClick = onDismiss) { Text(tr("Готово", "Done", "Готово")) }
                 else -> Button(onClick = { picker.launch(arrayOf("text/*", "text/csv", "application/csv", "application/vnd.ms-excel", "*/*")) }) {
-                    Text("Обрати файл CSV")
+                    Text(tr("Обрати файл CSV", "Choose CSV file", "Выбрать файл CSV"))
                 }
             }
         },
-        dismissButton = { if (!running && result == null) TextButton(onClick = onDismiss) { Text("Скасувати") } },
+        dismissButton = { if (!running && result == null) TextButton(onClick = onDismiss) { Text(tr("Скасувати", "Cancel", "Отмена")) } },
     )
 }

@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.SectionStyle
+import com.kinoteka.app.i18n.tr
 
 /** Какие разделы показывать (в нужном порядке) и как выглядят их кнопки. */
 data class SectionPrefs(
@@ -100,7 +101,7 @@ fun SectionChips(
                 FilterChip(
                     selected = selected == s,
                     onClick = { onSelect(s) },
-                    label = { Text(s?.title ?: "Усі") },
+                    label = { Text(s?.title ?: tr("Усі", "All", "Все")) },
                     leadingIcon = if (style == SectionStyle.CHIPS_ICONS) {
                         { Icon(s?.icon ?: Icons.Default.GridView, null, Modifier.size(FilterChipDefaults.IconSize)) }
                     } else null,
@@ -122,7 +123,7 @@ fun SectionChips(
                         onClick = { onSelect(s) },
                         selectedContentColor = MaterialTheme.colorScheme.primary,
                         unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        text = { Text(s?.title ?: "Усі", fontWeight = if (selected == s) FontWeight.SemiBold else FontWeight.Normal) },
+                        text = { Text(s?.title ?: tr("Усі", "All", "Все"), fontWeight = if (selected == s) FontWeight.SemiBold else FontWeight.Normal) },
                     )
                 }
             }
@@ -154,7 +155,7 @@ fun SectionChips(
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            s?.title ?: "Усі",
+                            s?.title ?: tr("Усі", "All", "Все"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center,

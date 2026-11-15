@@ -55,6 +55,9 @@ import com.kinoteka.app.data.PersonPage
 import com.kinoteka.app.data.friendlyMessage
 import com.kinoteka.app.data.tmdb.PersonDetails
 import com.kinoteka.app.data.tmdb.TmdbImages
+import com.kinoteka.app.i18n.I18n
+import com.kinoteka.app.i18n.plural
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ChipRow
 import com.kinoteka.app.ui.components.ErrorBox
@@ -69,7 +72,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 class PersonViewModel(private val repo: MediaRepository, private val id: Int) : ViewModel() {
     private val _state = MutableStateFlow<UiState<PersonPage>>(UiState.Loading)
@@ -86,7 +88,13 @@ class PersonViewModel(private val repo: MediaRepository, private val id: Int) : 
     }
 }
 
-private enum class CreditFilter(val label: String) { ALL("Усе"), MOVIES("Фільми"), TV("Серіали") }
+private enum class CreditFilter(private val uk: String, private val en: String, private val ru: String) {
+    ALL("Усе", "All", "Все"),
+    MOVIES("Фільми", "Movies", "Фильмы"),
+    TV("Серіали", "TV Shows", "Сериалы");
+
+    val label: String get() = tr(uk, en, ru)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +109,7 @@ fun PersonScreen(id: Int, onBack: () -> Unit, onOpen: (MediaCard) -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
             )
         },
     ) { padding ->
@@ -136,13 +144,13 @@ private fun PersonContent(page: PersonPage, onOpen: (MediaCard) -> Unit, modifie
         item(span = { GridItemSpan(maxLineSpan) }) { PersonHeader(page.person) }
 
         if (page.knownFor.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-            MediaRow("Відомі роботи", page.knownFor, onOpen, onMore = null)
+            MediaRow(tr("Відомі роботи", "Known for", "Известные работы"), page.knownFor, onOpen, onMore = null)
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column {
                 Text(
-                    "Фільмографія",
+                    tr("Фільмографія", "Filmography", "Фильмография"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
@@ -161,7 +169,7 @@ private fun PersonContent(page: PersonPage, onOpen: (MediaCard) -> Unit, modifie
             PosterCard(
                 title = credit.card.title,
                 posterPath = credit.card.posterPath,
-                subtitle = listOfNotNull(credit.date?.take(4)?.ifBlank { null } ?: "скоро", credit.role).joinToString(" · "),
+                subtitle = listOfNotNull(credit.date?.take(4)?.ifBlank { null } ?: tr("скоро", "soon", "скоро"), credit.role).joinToString(" · "),
                 tmdbRating = credit.card.rating,
                 myRating = my?.score,
                 onClick = { onOpen(credit.card) },
@@ -171,15 +179,15 @@ private fun PersonContent(page: PersonPage, onOpen: (MediaCard) -> Unit, modifie
     }
 }
 
-private val dateFormat = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("uk"))
+private fun dateFormat() = DateTimeFormatter.ofPattern(tr("d MMMM yyyy", "MMMM d, yyyy", "d MMMM yyyy"), I18n.locale)
 
 private fun departmentLabel(d: String?) = when (d) {
-    "Acting" -> "Акторська гра"
-    "Directing" -> "Режисура"
-    "Writing" -> "Сценарії"
-    "Production" -> "Продюсування"
-    "Sound" -> "Музика і звук"
-    "Camera" -> "Операторська робота"
+    "Acting" -> tr("Акторська гра", "Acting", "Актёрская игра")
+    "Directing" -> tr("Режисура", "Directing", "Режиссура")
+    "Writing" -> tr("Сценарії", "Writing", "Сценарии")
+    "Production" -> tr("Продюсування", "Production", "Продюсирование")
+    "Sound" -> tr("Музика і звук", "Music and sound", "Музыка и звук")
+    "Camera" -> tr("Операторська робота", "Camera", "Операторская работа")
     else -> d
 }
 
@@ -211,14 +219,18 @@ private fun PersonHeader(p: PersonDetails) {
                 if (birth != null) {
                     Spacer(Modifier.height(8.dp))
                     val age = Period.between(birth, death ?: LocalDate.now()).years
+                    val ageText = " ($age ${plural(age, "рік|роки|років", "year|years", "год|года|лет")})"
                     Text(
-                        "Народження: ${dateFormat.format(birth)}" + if (death == null) " ($age р.)" else "",
+                        tr("Народження", "Born", "Рождение") + ": ${dateFormat().format(birth)}" + if (death == null) ageText else "",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
                 if (death != null) {
-                    val years = birth?.let { " (${Period.between(it, death).years} р.)" }.orEmpty()
-                    Text("Смерть: ${dateFormat.format(death)}$years", style = MaterialTheme.typography.bodySmall)
+                    val years = birth?.let {
+                        val n = Period.between(it, death).years
+                        " ($n ${plural(n, "рік|роки|років", "year|years", "год|года|лет")})"
+                    }.orEmpty()
+                    Text(tr("Смерть", "Died", "Смерть") + ": ${dateFormat().format(death)}$years", style = MaterialTheme.typography.bodySmall)
                 }
                 p.placeOfBirth?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.height(4.dp))
@@ -228,7 +240,7 @@ private fun PersonHeader(p: PersonDetails) {
         }
         p.biography?.takeIf { it.isNotBlank() }?.let { bio ->
             Spacer(Modifier.height(16.dp))
-            Text("Біографія", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(tr("Біографія", "Biography", "Биография"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             Text(
                 bio,
@@ -239,7 +251,7 @@ private fun PersonHeader(p: PersonDetails) {
             )
             if (bio.length > 300) {
                 Text(
-                    if (expanded) "Згорнути" else "Читати далі",
+                    if (expanded) tr("Згорнути", "Show less", "Свернуть") else tr("Читати далі", "Read more", "Читать далее"),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(top = 6.dp).clickable { expanded = !expanded },

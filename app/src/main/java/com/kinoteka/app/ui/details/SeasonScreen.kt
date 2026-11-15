@@ -56,6 +56,7 @@ import com.kinoteka.app.data.friendlyMessage
 import com.kinoteka.app.data.tmdb.Episode
 import com.kinoteka.app.data.tmdb.SeasonDetails
 import com.kinoteka.app.data.tmdb.TmdbImages
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ErrorBox
 import com.kinoteka.app.ui.components.LoadingBox
@@ -103,18 +104,18 @@ fun SeasonScreen(tvId: Int, season: Int, showTitle: String, details: DetailsView
             TopAppBar(
                 title = {
                     Column {
-                        Text(if (season == 0) "Спецвипуски" else "Сезон $season")
+                        Text(if (season == 0) tr("Спецвипуски", "Specials", "Спецвыпуски") else tr("Сезон $season", "Season $season", "Сезон $season"))
                         Text(showTitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                 },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
                 actions = {
                     val s = state
                     if (s is UiState.Success) {
                         // Отмечаем только вышедшие серии.
                         val aired = s.data.episodes.filter { (it.airDate ?: "9999") <= today }.size
                         IconButton(onClick = { details.toggleSeason(season, aired) }) {
-                            Icon(Icons.Default.DoneAll, "Відмітити весь сезон")
+                            Icon(Icons.Default.DoneAll, tr("Відмітити весь сезон", "Mark whole season", "Отметить весь сезон"))
                         }
                     }
                 },
@@ -130,7 +131,7 @@ fun SeasonScreen(tvId: Int, season: Int, showTitle: String, details: DetailsView
                 LazyColumn(modifier, contentPadding = PaddingValues(bottom = 24.dp)) {
                     item {
                         Column(Modifier.padding(16.dp)) {
-                            Text("Переглянуто ${watched.size} з $total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(tr("Переглянуто ${watched.size} з $total", "Watched ${watched.size} of $total", "Просмотрено ${watched.size} из $total"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(8.dp))
                             LinearProgressIndicator(
                                 progress = { if (total == 0) 0f else watched.size.toFloat() / total },
@@ -177,8 +178,8 @@ private fun EpisodeRow(season: Int, ep: Episode, watched: Boolean, aired: Boolea
             )
             Text(
                 listOfNotNull(
-                    ep.airDate?.let { if (aired) it else "вийде $it" },
-                    ep.runtime?.takeIf { it > 0 }?.let { "$it хв" },
+                    ep.airDate?.let { if (aired) it else tr("вийде $it", "airs $it", "выйдет $it") },
+                    ep.runtime?.takeIf { it > 0 }?.let { tr("$it хв", "$it min", "$it мин") },
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

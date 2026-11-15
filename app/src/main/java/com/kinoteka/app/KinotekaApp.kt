@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.onEach
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
+import com.kinoteka.app.ui.details.displayTitle
+import kotlinx.coroutines.flow.first
 
 class KinotekaApp : Application() {
     lateinit var container: AppContainer
@@ -38,6 +40,22 @@ class KinotekaApp : Application() {
         // Виджет обновляется через пару секунд после изменений в библиотеке.
         container.library.entries.drop(1).debounce(2_000).onEach {
             runCatching { KinotekaWidget().updateAll(this@KinotekaApp) }
+        }.launchIn(appScope)
+        // Названия и жанры в библиотеке — на языке приложения: после смены языка подтягиваем заново.
+        container.ui.appLanguage.onEach { lang ->
+            container.library.loaded.first { it }
+            val prefs = getSharedPreferences("ui", MODE_PRIVATE)
+            if (prefs.getString("library_meta_language", "uk") == lang.code) return@onEach
+            for (e in container.library.entries.value.values.toList()) {
+                if (e.manual || container.ui.appLanguage.value != lang) continue
+                val d = runCatching { container.repository.detailsLite(e.type, e.tmdbId) }.getOrNull() ?: continue
+                container.library.refreshMeta(
+                    e.key,
+                    d.displayTitle(e.type),
+                    d.genres.map { g -> g.name.replaceFirstChar { c -> c.uppercase() } },
+                )
+            }
+            if (container.ui.appLanguage.value == lang) prefs.edit().putString("library_meta_language", lang.code).apply()
         }.launchIn(appScope)
     }
 }

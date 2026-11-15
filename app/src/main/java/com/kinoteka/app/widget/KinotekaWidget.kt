@@ -28,6 +28,7 @@ import com.kinoteka.app.MainActivity
 import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.WatchStatus
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -57,23 +58,23 @@ class KinotekaWidget : GlanceAppWidget() {
             GlanceModifier.fillMaxSize().background(Color(0xFF14261A)).cornerRadius(20.dp).padding(14.dp)
                 .clickable(actionStartActivity<MainActivity>()),
         ) {
-            Text("🐍 Що подивитись?", style = TextStyle(color = green, fontSize = 16.sp, fontWeight = FontWeight.Bold))
+            Text(tr("🐍 Що подивитись?", "🐍 What to watch?", "🐍 Что посмотреть?"), style = TextStyle(color = green, fontSize = 16.sp, fontWeight = FontWeight.Bold))
             Spacer(GlanceModifier.height(6.dp))
             if (want.isEmpty() && watching.isEmpty()) {
-                Text("Додайте фільми в «Хочу подивитись» — і змійка підкаже, що ввімкнути.", style = TextStyle(color = dim, fontSize = 13.sp))
+                Text(tr("Додайте фільми в «Хочу подивитись» — і змійка підкаже, що ввімкнути.", "Add movies to “Want to watch” and the snake will suggest what to put on.", "Добавьте фильмы в «Хочу посмотреть» — и змейка подскажет, что включить."), style = TextStyle(color = dim, fontSize = 13.sp))
             }
             want.forEach { e ->
                 Text("• ${e.displayTitle}" + (e.year?.let { " ($it)" } ?: ""), style = TextStyle(color = text, fontSize = 14.sp), maxLines = 1)
             }
             if (wantCount > want.size) {
-                Text("…і ще ${wantCount - want.size} у списку", style = TextStyle(color = dim, fontSize = 12.sp))
+                Text(tr("…і ще ${wantCount - want.size} у списку", "…and ${wantCount - want.size} more on the list", "…и ещё ${wantCount - want.size} в списке"), style = TextStyle(color = dim, fontSize = 12.sp))
             }
             if (watching.isNotEmpty()) {
                 Spacer(GlanceModifier.height(8.dp))
-                Text("Дивлюсь зараз", style = TextStyle(color = green, fontSize = 13.sp, fontWeight = FontWeight.Medium))
+                Text(tr("Дивлюсь зараз", "Watching now", "Смотрю сейчас"), style = TextStyle(color = green, fontSize = 13.sp, fontWeight = FontWeight.Medium))
                 watching.forEach { e ->
                     Text(
-                        "• ${e.displayTitle} · ${e.watchedEpisodeCount} сер.",
+                        "• ${e.displayTitle} · ${e.watchedEpisodeCount} " + tr("сер.", "ep.", "сер."),
                         style = TextStyle(color = text, fontSize = 14.sp),
                         maxLines = 1,
                     )

@@ -84,6 +84,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.kinoteka.app.ui.LocalContainer
+import com.kinoteka.app.i18n.AppLanguage
+import com.kinoteka.app.i18n.tr
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,8 +98,8 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Налаштування") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                title = { Text(tr("Налаштування", "Settings", "Настройки")) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
             )
         },
     ) { padding ->
@@ -114,10 +116,14 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.TextFields, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(12.dp))
-                            Text("Розмір інтерфейсу", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(tr("Розмір інтерфейсу", "Interface size", "Размер интерфейса"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         }
                         Text(
-                            "Збільшує все одразу: текст, кнопки, меню, постери. Зміна видна відразу.",
+                            tr(
+                                "Збільшує все одразу: текст, кнопки, меню, постери. Зміна видна відразу.",
+                                "Scales everything at once: text, buttons, menus, posters. The change applies immediately.",
+                                "Увеличивает всё сразу: текст, кнопки, меню, постеры. Изменение видно сразу.",
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -144,14 +150,14 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
                     Column(Modifier.padding(vertical = 8.dp)) {
                         NavRow(
                             icon = if (sync.signedIn) Icons.Default.CloudDone else Icons.Default.CloudOff,
-                            title = "Google Диск",
-                            subtitle = sync.email ?: "Синхронізація вимкнена",
+                            title = tr("Google Диск", "Google Drive", "Google Диск"),
+                            subtitle = sync.email ?: tr("Синхронізація вимкнена", "Sync is off", "Синхронизация выключена"),
                             onClick = onAccount,
                         )
                         NavRow(
                             icon = Icons.Default.Info,
-                            title = "Про застосунок",
-                            subtitle = "Версія ${BuildConfig.VERSION_NAME}, джерела даних",
+                            title = tr("Про застосунок", "About", "О приложении"),
+                            subtitle = tr("Версія ${BuildConfig.VERSION_NAME}, джерела даних", "Version ${BuildConfig.VERSION_NAME}, data sources", "Версия ${BuildConfig.VERSION_NAME}, источники данных"),
                             onClick = onAbout,
                         )
                     }
@@ -173,7 +179,7 @@ private fun ThemeCard() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
-                Text("Тема", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(tr("Тема", "Theme", "Тема"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AppTheme.entries.forEach { theme ->
@@ -235,32 +241,36 @@ private fun ThemeCard() {
 @Composable
 private fun LanguageCard() {
     val container = LocalContainer.current
-    val language by container.ui.contentLanguage.collectAsStateWithLifecycle()
-    val options = listOf("uk-UA" to "Українська", "en-US" to "English")
+    val language by container.ui.appLanguage.collectAsStateWithLifecycle()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Translate, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
-                Text("Мова назв і описів", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(tr("Мова застосунку", "App language", "Язык приложения"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Text(
-                "Назви фільмів, описи та жанри з TMDB. Якщо українського перекладу немає — показуємо англійський.",
+                tr(
+                    "Інтерфейс, назви фільмів, описи та жанри з TMDB. Якщо перекладу немає — показуємо англійський.",
+                    "Interface, movie titles, descriptions and genres from TMDB. If there is no translation, English is shown.",
+                    "Интерфейс, названия фильмов, описания и жанры из TMDB. Если перевода нет — показываем английский.",
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val options = AppLanguage.entries
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                options.forEachIndexed { i, (code, label) ->
+                options.forEachIndexed { i, lang ->
                     SegmentedButton(
-                        selected = code == language,
+                        selected = lang == language,
                         onClick = {
-                            if (code != language) {
+                            if (lang != language) {
                                 container.repository.clearCaches()
-                                container.ui.setContentLanguage(code)
+                                container.ui.setAppLanguage(lang)
                             }
                         },
                         shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                        label = { Text(label) },
+                        label = { Text(lang.label, maxLines = 1) },
                     )
                 }
             }
@@ -295,17 +305,23 @@ private fun RemindersCard() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.NotificationsActive, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
-                Text("Нагадування", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(tr("Нагадування", "Reminders", "Напоминания"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Switch(checked = enabled, onCheckedChange = ::setEnabled)
             }
             Text(
-                "Сповіщення, коли виходить нова серія серіалу зі статусом «Дивлюсь» (сьогодні або завтра) " +
-                    "і коли виходить фільм із «Хочу подивитись». Перевірка двічі на день.",
+                tr(
+                    "Сповіщення, коли виходить нова серія серіалу зі статусом «Дивлюсь» (сьогодні або завтра) " +
+                        "і коли виходить фільм із «Хочу подивитись». Перевірка двічі на день.",
+                    "Notifications when a new episode of a show marked “Watching” comes out (today or tomorrow) " +
+                        "and when a movie from “Want to watch” is released. Checked twice a day.",
+                    "Уведомления, когда выходит новая серия сериала со статусом «Смотрю» (сегодня или завтра) " +
+                        "и когда выходит фильм из «Хочу посмотреть». Проверка дважды в день.",
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (enabled) {
-                TextButton(onClick = { Reminders.checkNow(context) }) { Text("Перевірити зараз") }
+                TextButton(onClick = { Reminders.checkNow(context) }) { Text(tr("Перевірити зараз", "Check now", "Проверить сейчас")) }
             }
         }
     }
@@ -324,7 +340,7 @@ private fun SectionStyleCard() {
             Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Style, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
-                Text("Кнопки розділів", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(tr("Кнопки розділів", "Section buttons", "Кнопки разделов"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(8.dp))
             SectionStyle.entries.forEach { option ->
@@ -339,7 +355,7 @@ private fun SectionStyleCard() {
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "Попередній перегляд",
+                tr("Попередній перегляд", "Preview", "Предпросмотр"),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -367,10 +383,10 @@ private fun SectionsCard() {
             Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Checklist, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
-                Text("Розділи", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(tr("Розділи", "Sections", "Разделы"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Text(
-                "Позначте потрібні розділи та змініть порядок стрілками.",
+                tr("Позначте потрібні розділи та змініть порядок стрілками.", "Check the sections you need and reorder them with the arrows.", "Отметьте нужные разделы и измените порядок стрелками."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
@@ -400,10 +416,10 @@ private fun SectionsCard() {
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { ui.moveSection(section, -1) }, enabled = index > 0) {
-                        Icon(Icons.Default.KeyboardArrowUp, "Вище")
+                        Icon(Icons.Default.KeyboardArrowUp, tr("Вище", "Move up", "Выше"))
                     }
                     IconButton(onClick = { ui.moveSection(section, +1) }, enabled = index < order.lastIndex) {
-                        Icon(Icons.Default.KeyboardArrowDown, "Нижче")
+                        Icon(Icons.Default.KeyboardArrowDown, tr("Нижче", "Move down", "Ниже"))
                     }
                 }
             }

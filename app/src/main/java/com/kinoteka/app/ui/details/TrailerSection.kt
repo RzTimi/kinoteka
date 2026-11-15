@@ -65,6 +65,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.AsyncImage
 import com.kinoteka.app.data.tmdb.Video
+import com.kinoteka.app.i18n.I18n
+import com.kinoteka.app.i18n.tr
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
@@ -88,21 +90,22 @@ private fun typeOrder(type: String) = when (type) {
     else -> 5
 }
 
+/** Сначала трейлеры на языке приложения, потом английские. */
 private fun languageOrder(lang: String?) = when (lang) {
-    "uk" -> 0
+    I18n.language.code -> 0
     "en" -> 1
     else -> 2
 }
 
 private fun typeLabel(type: String) = when (type) {
-    "Trailer" -> "Трейлер"
-    "Teaser" -> "Тизер"
-    "Clip" -> "Уривок"
-    "Featurette" -> "Про фільм"
-    "Behind the Scenes" -> "За лаштунками"
-    "Bloopers" -> "Кумедні моменти"
-    "Opening Credits" -> "Заставка"
-    else -> "Відео"
+    "Trailer" -> tr("Трейлер", "Trailer", "Трейлер")
+    "Teaser" -> tr("Тизер", "Teaser", "Тизер")
+    "Clip" -> tr("Уривок", "Clip", "Отрывок")
+    "Featurette" -> tr("Про фільм", "Featurette", "О фильме")
+    "Behind the Scenes" -> tr("За лаштунками", "Behind the scenes", "За кадром")
+    "Bloopers" -> tr("Кумедні моменти", "Bloopers", "Забавные моменты")
+    "Opening Credits" -> tr("Заставка", "Opening credits", "Заставка")
+    else -> tr("Відео", "Video", "Видео")
 }
 
 private fun videoLabel(v: Video) = listOfNotNull(
@@ -142,9 +145,9 @@ fun TrailerSection(videos: List<Video>, modifier: Modifier = Modifier) {
                         val notEmbeddable = e == PlayerConstants.PlayerError.VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER ||
                             e == PlayerConstants.PlayerError.REQUEST_MISSING_HTTP_REFERER
                         error = when {
-                            notEmbeddable -> "Автор заборонив показ цього відео в застосунках"
-                            e == PlayerConstants.PlayerError.VIDEO_NOT_FOUND -> "Відео видалено з YouTube"
-                            else -> "Не вдалося відтворити відео"
+                            notEmbeddable -> tr("Автор заборонив показ цього відео в застосунках", "The owner doesn't allow this video to be played in apps", "Автор запретил показ этого видео в приложениях")
+                            e == PlayerConstants.PlayerError.VIDEO_NOT_FOUND -> tr("Відео видалено з YouTube", "The video was removed from YouTube", "Видео удалено с YouTube")
+                            else -> tr("Не вдалося відтворити відео", "Couldn't play the video", "Не удалось воспроизвести видео")
                         }
                         // Встраивать нельзя: сразу открываем в YouTube.
                         if (notEmbeddable) uri.openUri(youtubeUrl(selected.key))
@@ -158,7 +161,7 @@ fun TrailerSection(videos: List<Video>, modifier: Modifier = Modifier) {
 
         if (videos.size > 1) {
             Text(
-                "Інші відео",
+                tr("Інші відео", "More videos", "Другие видео"),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
@@ -203,7 +206,7 @@ private fun VideoPreview(video: Video, onPlay: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.PlayArrow, "Відтворити", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(40.dp))
+            Icon(Icons.Default.PlayArrow, tr("Відтворити", "Play", "Воспроизвести"), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(40.dp))
         }
     }
 }
@@ -238,7 +241,7 @@ private fun EmbedErrorBox(message: String, onOpen: () -> Unit) {
     ) {
         Text(message, color = Color.White, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onOpen) { Text("Відкрити в YouTube") }
+        Button(onClick = onOpen) { Text(tr("Відкрити в YouTube", "Open in YouTube", "Открыть в YouTube")) }
     }
 }
 
@@ -278,7 +281,7 @@ private fun YouTubePlayerBox(
                 .fullscreen(1)
                 .rel(0)
                 .ivLoadPolicy(3)
-                .langPref("uk")
+                .langPref(I18n.language.code)
                 .build()
             initialize(object : AbstractYouTubePlayerListener() {
                 override fun onReady(youTubePlayer: YouTubePlayer) {

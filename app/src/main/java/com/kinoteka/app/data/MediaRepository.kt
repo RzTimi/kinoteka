@@ -6,6 +6,8 @@ import com.kinoteka.app.data.tmdb.TmdbApi
 import com.kinoteka.app.data.tmdb.TmdbDetails
 import com.kinoteka.app.data.tmdb.TmdbItem
 import com.kinoteka.app.data.tmdb.PersonDetails
+import com.kinoteka.app.i18n.I18n
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -91,7 +93,7 @@ class MediaRepository(
             val e = enByNumber[ep.number]
             ep.copy(
                 overview = ep.overview?.takeIf { it.isNotBlank() } ?: e?.overview,
-                name = ep.name?.takeIf { it.isNotBlank() && !it.matches(Regex("(Епізод|Серія|Episode) \\d+")) } ?: e?.name ?: ep.name,
+                name = ep.name?.takeIf { it.isNotBlank() && !it.matches(Regex("(Епізод|Серія|Эпизод|Серия|Episode) \\d+")) } ?: e?.name ?: ep.name,
             )
         })
     }
@@ -129,10 +131,10 @@ class MediaRepository(
     }
 
     private fun jobLabel(job: String?) = when (job) {
-        "Director" -> "Режисер"
-        "Screenplay", "Writer", "Story" -> "Сценарист"
-        "Creator" -> "Автор ідеї"
-        "Novel" -> "Автор книги"
+        "Director" -> tr("Режисер", "Director", "Режиссёр")
+        "Screenplay", "Writer", "Story" -> tr("Сценарист", "Writer", "Сценарист")
+        "Creator" -> tr("Автор ідеї", "Creator", "Автор идеи")
+        "Novel" -> tr("Автор книги", "Novel", "Автор книги")
         else -> job
     }
 
@@ -245,13 +247,13 @@ class MediaRepository(
         api.images(type.path, id).posters
             .filter { it.filePath.isNotBlank() }
             .sortedWith(
-                compareBy<ImageInfo>({ when (it.language) { "uk" -> 0; null -> 1; "en" -> 2; else -> 3 } })
+                compareBy<ImageInfo>({ when (it.language) { I18n.language.code -> 0; null -> 1; "en" -> 2; else -> 3 } })
                     .thenByDescending { it.voteAverage }
             )
 
     /** Альтернативные фоны (кадры): сначала без текста, потом остальные. */
     suspend fun backdrops(type: MediaType, id: Int): List<ImageInfo> =
-        api.images(type.path, id, languages = "null,uk,en").backdrops
+        api.images(type.path, id, languages = "null,${I18n.language.code},en").backdrops
             .filter { it.filePath.isNotBlank() }
             .sortedWith(compareBy<ImageInfo>({ if (it.language == null) 0 else 1 }).thenByDescending { it.voteAverage })
             .take(60)
@@ -322,13 +324,13 @@ fun TmdbItem.toCard(type: MediaType) = MediaCard(
 )
 
 fun Throwable.friendlyMessage(): String = when (this) {
-    is UnknownHostException -> "Немає з'єднання з інтернетом"
+    is UnknownHostException -> tr("Немає з'єднання з інтернетом", "No internet connection", "Нет подключения к интернету")
     is retrofit2.HttpException -> when (code()) {
-        401 -> "Ключ TMDB не підходить. Перевірте TMDB_API_KEY у local.properties"
-        404 -> "Не знайдено"
-        429 -> "Забагато запитів, спробуйте за хвилину"
-        else -> "Помилка сервера (${code()})"
+        401 -> tr("Ключ TMDB не підходить. Перевірте TMDB_API_KEY у local.properties", "The TMDB key is invalid. Check TMDB_API_KEY in local.properties", "Ключ TMDB не подходит. Проверьте TMDB_API_KEY в local.properties")
+        404 -> tr("Не знайдено", "Not found", "Не найдено")
+        429 -> tr("Забагато запитів, спробуйте за хвилину", "Too many requests, try again in a minute", "Слишком много запросов, попробуйте через минуту")
+        else -> tr("Помилка сервера (${code()})", "Server error (${code()})", "Ошибка сервера (${code()})")
     }
-    is IOException -> "Проблема з мережею. Спробуйте ще раз"
-    else -> message ?: "Щось пішло не так"
+    is IOException -> tr("Проблема з мережею. Спробуйте ще раз", "Network problem. Please try again", "Проблема с сетью. Попробуйте ещё раз")
+    else -> message ?: tr("Щось пішло не так", "Something went wrong", "Что-то пошло не так")
 }

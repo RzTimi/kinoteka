@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AssistChipDefaults
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.LocalContainer
 
 /** Строка «Підбірки» в карточке: чипы подборок фильма и кнопка «Додати в підбірку». */
@@ -55,7 +56,7 @@ fun CollectionsRow(current: List<String>, onToggle: (String) -> Unit, onCreate: 
         }
         AssistChip(
             onClick = { open = true },
-            label = { Text(if (current.isEmpty()) "Додати в підбірку" else "Підбірки") },
+            label = { Text(if (current.isEmpty()) tr("Додати в підбірку", "Add to collection", "Добавить в подборку") else tr("Підбірки", "Collections", "Подборки")) },
             leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(AssistChipDefaults.IconSize)) },
         )
     }
@@ -73,10 +74,10 @@ fun CollectionsSheet(current: List<String>, onToggle: (String) -> Unit, onCreate
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-            Text("Мої підбірки", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(tr("Мої підбірки", "My collections", "Мои подборки"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.size(8.dp))
             if (all.isEmpty()) {
-                Text("Поки немає жодної. Створіть першу, наприклад «Новорічне» чи «З друзями».", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Поки немає жодної. Створіть першу, наприклад «Новорічне» чи «З друзями».", "None yet. Create your first one, like “New Year” or “With friends”.", "Пока нет ни одной. Создайте первую, например «Новогоднее» или «С друзьями»."), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             all.entries.sortedBy { it.value }.forEach { (name, _) ->
                 Row(
@@ -85,7 +86,7 @@ fun CollectionsSheet(current: List<String>, onToggle: (String) -> Unit, onCreate
                 ) {
                     Checkbox(checked = name in current, onCheckedChange = { onToggle(name) })
                     Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { toDelete = name }) { Icon(Icons.Outlined.Delete, "Видалити підбірку") }
+                    IconButton(onClick = { toDelete = name }) { Icon(Icons.Outlined.Delete, tr("Видалити підбірку", "Delete collection", "Удалить подборку")) }
                 }
             }
             Spacer(Modifier.size(8.dp))
@@ -93,7 +94,7 @@ fun CollectionsSheet(current: List<String>, onToggle: (String) -> Unit, onCreate
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    placeholder = { Text("Нова підбірка") },
+                    placeholder = { Text(tr("Нова підбірка", "New collection", "Новая подборка")) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -101,7 +102,7 @@ fun CollectionsSheet(current: List<String>, onToggle: (String) -> Unit, onCreate
                 TextButton(
                     onClick = { onCreate(newName.trim()); newName = "" },
                     enabled = newName.isNotBlank(),
-                ) { Text("Створити") }
+                ) { Text(tr("Створити", "Create", "Создать")) }
             }
             Spacer(Modifier.size(16.dp))
         }
@@ -110,10 +111,10 @@ fun CollectionsSheet(current: List<String>, onToggle: (String) -> Unit, onCreate
     toDelete?.let { name ->
         AlertDialog(
             onDismissRequest = { toDelete = null },
-            title = { Text("Видалити підбірку «$name»?") },
-            text = { Text("Фільми залишаться в бібліотеці, просто вийдуть із цієї підбірки.") },
-            confirmButton = { TextButton(onClick = { library.deleteCollection(name); toDelete = null }) { Text("Видалити") } },
-            dismissButton = { TextButton(onClick = { toDelete = null }) { Text("Скасувати") } },
+            title = { Text(tr("Видалити підбірку «$name»?", "Delete collection “$name”?", "Удалить подборку «$name»?")) },
+            text = { Text(tr("Фільми залишаться в бібліотеці, просто вийдуть із цієї підбірки.", "The titles stay in your library, they'll just be removed from this collection.", "Фильмы останутся в библиотеке, просто уйдут из этой подборки.")) },
+            confirmButton = { TextButton(onClick = { library.deleteCollection(name); toDelete = null }) { Text(tr("Видалити", "Delete", "Удалить")) } },
+            dismissButton = { TextButton(onClick = { toDelete = null }) { Text(tr("Скасувати", "Cancel", "Отмена")) } },
         )
     }
 }

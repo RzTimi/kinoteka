@@ -4,6 +4,7 @@ import android.content.Context
 import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.mediaKey
+import com.kinoteka.app.i18n.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,13 +20,22 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 /** Статусы как у MyAnimeList / Shikimori. Порядок = порядок кнопок. */
-enum class WatchStatus(val label: String, val tvOnly: Boolean = false) {
-    WANT("Хочу подивитись"),
-    WATCHING("Дивлюсь", tvOnly = true),
-    REWATCHING("Переглядаю"),
-    WATCHED("Переглянуто"),
-    ON_HOLD("Відкладено", tvOnly = true),
-    DROPPED("Кинув"),
+enum class WatchStatus(
+    private val uk: String,
+    private val en: String,
+    private val ru: String,
+    val tvOnly: Boolean = false,
+) {
+    WANT("Хочу подивитись", "Want to watch", "Хочу посмотреть"),
+    WATCHING("Дивлюсь", "Watching", "Смотрю", tvOnly = true),
+    REWATCHING("Переглядаю", "Rewatching", "Пересматриваю"),
+    WATCHED("Переглянуто", "Watched", "Просмотрено"),
+    ON_HOLD("Відкладено", "On hold", "Отложено", tvOnly = true),
+    DROPPED("Кинув", "Dropped", "Брошено"),
+    ;
+
+    /** Подпись на текущем языке (только для показа; сохраняется [name]). */
+    val label: String get() = tr(uk, en, ru)
 }
 
 @Serializable
@@ -149,6 +159,21 @@ class LibraryStore(context: Context) {
         }
         deleted.update { if (becameEmpty) it + (key to now) else it - key }
         localChanged()
+    }
+
+    /**
+     * Обновить название и жанры на другом языке (после смены языка приложения).
+     * updatedAt не трогаем: это не ваше изменение, и синхронизация не должна из-за него гонять данные.
+     */
+    fun refreshMeta(key: String, title: String, genres: List<String>) {
+        var changed = false
+        _entries.update { map ->
+            val e = map[key] ?: return@update map
+            if (e.title == title && e.genres == genres) return@update map
+            changed = true
+            map + (key to e.copy(title = title, genres = genres.ifEmpty { e.genres }))
+        }
+        if (changed) persist()
     }
 
     fun remove(key: String) {
