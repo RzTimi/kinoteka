@@ -315,6 +315,8 @@ fun DetailsScreen(
     onOpen: (MediaCard) -> Unit,
     onPerson: (Int) -> Unit,
     onSeason: (Int) -> Unit = {},
+    /** Нажали на жанр: раздел, название жанра и параметры discover. */
+    onGenre: (Section, MediaType, String, Map<String, String>) -> Unit = { _, _, _, _ -> },
 ) {
     val container = LocalContainer.current
     val type = MediaType.fromPath(route.type) ?: MediaType.MOVIE
@@ -328,7 +330,7 @@ fun DetailsScreen(
         when (val s = state) {
             UiState.Loading -> LoadingBox()
             is UiState.Error -> ErrorBox(s.message, vm::load)
-            is UiState.Success -> DetailsContent(s.data, type, entry, vm, onOpen, onPerson, onSeason)
+            is UiState.Success -> DetailsContent(s.data, type, entry, vm, onOpen, onPerson, onSeason, onGenre)
         }
         BackButton(onBack)
     }
@@ -354,6 +356,7 @@ private fun DetailsContent(
     onOpen: (MediaCard) -> Unit,
     onPerson: (Int) -> Unit,
     onSeason: (Int) -> Unit,
+    onGenre: (Section, MediaType, String, Map<String, String>) -> Unit,
 ) {
     val uri = LocalUriHandler.current
     val imdb by vm.imdb.collectAsStateWithLifecycle()
@@ -506,7 +509,15 @@ private fun DetailsContent(
                 Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                d.genres.forEach { g -> SuggestionChip(onClick = {}, label = { Text(g.name.replaceFirstChar { it.uppercase() }) }) }
+                // Жанр кликабельный: открывает этот жанр в разделе фильма (аниме — в «Аніме» и т.д.).
+                val genreSection = entry?.sectionEnum ?: section
+                d.genres.forEach { g ->
+                    val name = g.name.replaceFirstChar { it.uppercase() }
+                    SuggestionChip(
+                        onClick = { onGenre(genreSection, type, name, mapOf("with_genres" to g.id.toString())) },
+                        label = { Text(name) },
+                    )
+                }
             }
         }
 

@@ -285,6 +285,9 @@ private fun AppScaffold() {
                     onOpen = openDetails,
                     onPerson = { nav.navigate(PersonRoute(it)) },
                     onSeason = { season -> nav.navigate(SeasonRoute(route.id, season, "")) },
+                    onGenre = { genreSection, type, title, params ->
+                        nav.navigate(BrowseRoute(genreSection.name, type.path, title, RouteParams.encode(params), sortable = true))
+                    },
                 )
             }
             composable<SeasonRoute> { entry ->
