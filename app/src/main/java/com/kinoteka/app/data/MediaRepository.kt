@@ -36,9 +36,17 @@ class MediaRepository(private val api: TmdbApi) {
 
     /** Одна страница discover для раздела, с фильтром по разделу на нашей стороне. */
     suspend fun discover(section: Section, type: MediaType, extra: Map<String, String>, page: Int): PageResult {
-        val params = mergeParams(section.baseParams(type), extra) + ("page" to page.toString())
+        // Явно выбранный «исключаемый» жанр (мультфильм в сериалах и т.п.) снимает исключение раздела.
+        val chosen = extra["with_genres"].orEmpty().split(',', '|').mapNotNull { it.trim().toIntOrNull() }
+        val overrides = chosen.filter { it in TmdbGenres.overriding }.toSet()
+        val base = section.baseParams(type).let { b ->
+            val without = b["without_genres"] ?: return@let b
+            val left = without.split(',').filter { it.toIntOrNull() !in overrides }
+            if (left.isEmpty()) b - "without_genres" else b + ("without_genres" to left.joinToString(","))
+        }
+        val params = mergeParams(base, extra) + ("page" to page.toString())
         val response = api.discover(type.path, params)
-        val filtered = response.results.filter { section.accepts(it, type) }
+        val filtered = if (overrides.isEmpty()) response.results.filter { section.accepts(it, type) } else response.results
         val titled = withReadableTitles(filtered, { type }) { api.discover(type.path, params + ("language" to "en-US")).results }
         return PageResult(titled.map { it.toCard(type) }, response.page, minOf(response.totalPages, 500))
     }
@@ -77,12 +85,26 @@ class MediaRepository(private val api: TmdbApi) {
         return result.values.toList()
     }
 
-    suspend fun genres(section: Section, type: MediaType): List<Genre> {
+    /**
+     * Все плашки для экрана жанров: обычные жанры TMDB, подборки по темам (для сериалов)
+     * и «другое» — мультфильм, документальный, реалити, новости, ток-шоу.
+     */
+    suspend fun genres(section: Section, type: MediaType): List<GenreOption> {
         val all = genreMutex.withLock {
             genreCache[type] ?: api.genres(type.path).genres.also { genreCache[type] = it }
         }
-        return all.filter { it.id !in TmdbGenres.hiddenInGenreList && it.id != section.fixedGenre }
+        val available = all.filter { it.id != section.fixedGenre }
+        val regular = available.filter { it.id !in TmdbGenres.overriding }
+            .map { GenreOption(it.name.capitalized(), mapOf("with_genres" to it.id.toString()), GenreOption.Kind.GENRE) }
+        val keywords = if (type == MediaType.TV) TmdbGenres.tvKeywordGenres.map { (name, ids) ->
+            GenreOption(name, mapOf("with_keywords" to ids), GenreOption.Kind.KEYWORD)
+        } else emptyList()
+        val extras = available.filter { it.id in TmdbGenres.overriding }
+            .map { GenreOption(it.name.capitalized(), mapOf("with_genres" to it.id.toString()), GenreOption.Kind.EXTRA) }
+        return regular + keywords + extras
     }
+
+    private fun String.capitalized() = replaceFirstChar { it.uppercase() }
 
     suspend fun search(query: String, page: Int): PageResult {
         val response = api.searchMulti(query, page)

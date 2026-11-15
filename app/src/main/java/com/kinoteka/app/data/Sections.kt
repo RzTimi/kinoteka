@@ -22,6 +22,28 @@ object TmdbGenres {
 
     /** Не показываем в списке жанров: это либо отдельный раздел, либо ТВ-шоу. */
     val hiddenInGenreList = setOf(ANIMATION, DOCUMENTARY, NEWS, REALITY, TALK)
+
+    /**
+     * Жанры, которые разделы обычно исключают. Если пользователь выбрал такой жанр
+     * явно (например «Мультфільм» в «Серіалах»), исключение снимается.
+     */
+    val overriding = setOf(ANIMATION, DOCUMENTARY, NEWS, REALITY, TALK)
+
+    /**
+     * Подборки для сериалов по ключевым словам TMDB: у сериалов нет жанров
+     * «Жахи», «Мелодрама», «Трилер», «Фентезі», поэтому ищем по темам.
+     */
+    val tvKeywordGenres = listOf(
+        "Жахи" to "315058|6152|3133|12377|162846|353801", // horror, supernatural, vampire, zombie, ghost, horror fantasy
+        "Мелодрама" to "9840|9673", // romance, love
+        "Трилер" to "316362|12565|366584", // thriller, psychological thriller, mystery thriller
+        "Фентезі" to "293198|2343|177895", // fantasy, magic, dark fantasy
+    )
+}
+
+/** Плашка на экране жанров: настоящий жанр TMDB, подборка по теме или «другое». */
+data class GenreOption(val name: String, val params: Map<String, String>, val kind: Kind) {
+    enum class Kind { GENRE, KEYWORD, EXTRA }
 }
 
 private val ASIAN_LANGUAGES = setOf("ko", "zh", "cn", "ja", "th")

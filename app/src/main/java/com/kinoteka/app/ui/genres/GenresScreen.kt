@@ -35,7 +35,9 @@ import com.kinoteka.app.data.MediaRepository
 import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.friendlyMessage
-import com.kinoteka.app.data.tmdb.Genre
+import com.kinoteka.app.data.GenreOption
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ChipRow
 import com.kinoteka.app.ui.components.ErrorBox
@@ -51,7 +53,7 @@ class GenresViewModel(
     private val section: Section,
     private val type: MediaType,
 ) : ViewModel() {
-    private val _state = MutableStateFlow<UiState<List<Genre>>>(UiState.Loading)
+    private val _state = MutableStateFlow<UiState<List<GenreOption>>>(UiState.Loading)
     val state = _state.asStateFlow()
 
     init { load() }
@@ -119,14 +121,35 @@ fun GenresScreen(
                         onOpen(type, "${section.title}: усі", emptyMap())
                     }
                 }
-                items(s.data, key = { it.id }) { genre ->
-                    GenreTile(genre.name.replaceFirstChar { it.uppercase() }) {
-                        onOpen(type, genre.name.replaceFirstChar { it.uppercase() }, mapOf("with_genres" to genre.id.toString()))
-                    }
-                }
+                genreGroup("", s.data.filter { it.kind == GenreOption.Kind.GENRE }) { onOpen(type, it.name, it.params) }
+                genreGroup(
+                    "Підбірки за темою",
+                    s.data.filter { it.kind == GenreOption.Kind.KEYWORD },
+                    hint = "У серіалів TMDB немає таких жанрів, тому шукаємо за ключовими словами",
+                ) { onOpen(type, it.name, it.params) }
+                genreGroup("Інше", s.data.filter { it.kind == GenreOption.Kind.EXTRA }) { onOpen(type, it.name, it.params) }
             }
         }
     }
+}
+
+/** Группа плашек с заголовком на всю ширину сетки. */
+private fun LazyGridScope.genreGroup(
+    title: String,
+    options: List<GenreOption>,
+    hint: String? = null,
+    onClick: (GenreOption) -> Unit,
+) {
+    if (options.isEmpty()) return
+    if (title.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }, key = "h_$title") {
+        Column(Modifier.padding(top = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (hint != null) {
+                Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    items(options, key = { "${it.kind}_${it.name}" }) { option -> GenreTile(option.name) { onClick(option) } }
 }
 
 @Composable
