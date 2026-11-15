@@ -20,6 +20,13 @@ import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.CameraRoll
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Mosque
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Theaters
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -57,6 +64,13 @@ val Section.icon: ImageVector
         Section.ANIME -> Icons.Default.AutoAwesome
         Section.CARTOONS -> Icons.Default.ChildCare
         Section.DOCS -> Icons.Default.Public
+        Section.TURKISH -> Icons.Default.Mosque
+        Section.UKRAINIAN -> Icons.Default.Favorite
+        Section.INDIAN -> Icons.Default.MusicNote
+        Section.KOREAN_MOVIES -> Icons.Default.Theaters
+        Section.REALITY -> Icons.Default.Groups
+        Section.CLASSIC -> Icons.Default.CameraRoll
+        Section.SHORTS -> Icons.Default.Timer
     }
 
 /**
@@ -70,8 +84,10 @@ fun SectionChips(
     modifier: Modifier = Modifier,
     showAll: Boolean = false,
     style: SectionStyle = LocalSectionPrefs.current.style,
+    /** Только основные разделы (для поиска и «Моїх оцінок», где фильм относится к одному из них). */
+    baseOnly: Boolean = false,
 ) {
-    val sections = LocalSectionPrefs.current.visible
+    val sections = LocalSectionPrefs.current.visible.let { all -> if (baseOnly) all.filter { it.isBase } else all }
     // null в списке = кнопка «Усі».
     val options: List<Section?> = (if (showAll) listOf<Section?>(null) else emptyList()) + sections
     when (style) {

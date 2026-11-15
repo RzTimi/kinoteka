@@ -38,7 +38,7 @@ class MediaRepository(private val api: TmdbApi) {
     suspend fun discover(section: Section, type: MediaType, extra: Map<String, String>, page: Int): PageResult {
         val params = mergeParams(section.baseParams(type), extra) + ("page" to page.toString())
         val response = api.discover(type.path, params)
-        val filtered = response.results.filter { Section.classify(it, type) == section }
+        val filtered = response.results.filter { section.accepts(it, type) }
         val titled = withReadableTitles(filtered, { type }) { api.discover(type.path, params + ("language" to "en-US")).results }
         return PageResult(titled.map { it.toCard(type) }, response.page, minOf(response.totalPages, 500))
     }
@@ -121,13 +121,31 @@ class MediaRepository(private val api: TmdbApi) {
     }
 
     companion object {
-        /** Склеивает параметры; with_genres объединяет через запятую (И). */
+        /**
+         * Склеивает параметры: with_genres объединяет через запятую (И);
+         * для границ «.lte» берёт более строгую (меньшую), для «.gte» — большую.
+         * Так, например, «Класика» (до 1990) не сломается сортировкой «Нові».
+         */
         fun mergeParams(base: Map<String, String>, extra: Map<String, String>): Map<String, String> {
             val out = base.toMutableMap()
             for ((k, v) in extra) {
-                out[k] = if (k == "with_genres" && out[k] != null) "${out[k]},$v" else v
+                val old = out[k]
+                out[k] = when {
+                    old == null -> v
+                    k == "with_genres" -> "$old,$v"
+                    k.endsWith(".lte") -> if (compareParam(v, old) < 0) v else old
+                    k.endsWith(".gte") -> if (compareParam(v, old) > 0) v else old
+                    else -> v
+                }
             }
             return out
+        }
+
+        /** Сравнение значений: числа — как числа, даты (ГГГГ-ММ-ДД) — как строки. */
+        private fun compareParam(a: String, b: String): Int {
+            val na = a.toDoubleOrNull()
+            val nb = b.toDoubleOrNull()
+            return if (na != null && nb != null) na.compareTo(nb) else a.compareTo(b)
         }
     }
 }

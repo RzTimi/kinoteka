@@ -30,13 +30,23 @@ private val ASIAN_LANGUAGES = setOf("ko", "zh", "cn", "ja", "th")
  * Разделы приложения. TMDB знает только «фильм» и «сериал», поэтому дорамы,
  * аниме и т.д. мы отбираем фильтрами по жанру и языку оригинала.
  */
-enum class Section(val title: String, val types: List<MediaType>) {
+enum class Section(val title: String, val types: List<MediaType>, val isBase: Boolean = true) {
     MOVIES("Фільми", listOf(MediaType.MOVIE)),
     SERIES("Серіали", listOf(MediaType.TV)),
     DORAMAS("Дорами", listOf(MediaType.TV)),
     ANIME("Аніме", listOf(MediaType.TV, MediaType.MOVIE)),
     CARTOONS("Мультфільми", listOf(MediaType.MOVIE, MediaType.TV)),
-    DOCS("Документальне", listOf(MediaType.MOVIE, MediaType.TV));
+    DOCS("Документальне", listOf(MediaType.MOVIE, MediaType.TV)),
+
+    // Дополнительные подборки: по умолчанию скрыты, включаются в настройках.
+    // Их фильмы остаются и в основных разделах (турецкий сериал — и в «Серіалах»).
+    TURKISH("Турецькі серіали", listOf(MediaType.TV), isBase = false),
+    UKRAINIAN("Українське", listOf(MediaType.MOVIE, MediaType.TV), isBase = false),
+    INDIAN("Індійське кіно", listOf(MediaType.MOVIE), isBase = false),
+    KOREAN_MOVIES("Корейське кіно", listOf(MediaType.MOVIE), isBase = false),
+    REALITY("Реаліті-шоу", listOf(MediaType.TV), isBase = false),
+    CLASSIC("Класика", listOf(MediaType.MOVIE), isBase = false),
+    SHORTS("Короткометражки", listOf(MediaType.MOVIE), isBase = false);
 
     /** Параметры запроса discover, которые сужают выдачу до раздела. */
     fun baseParams(type: MediaType): Map<String, String> = when (this) {
@@ -49,13 +59,26 @@ enum class Section(val title: String, val types: List<MediaType>) {
         ANIME -> mapOf("with_genres" to "16", "with_original_language" to "ja")
         CARTOONS -> mapOf("with_genres" to "16")
         DOCS -> mapOf("with_genres" to "99")
+        TURKISH -> mapOf("with_original_language" to "tr", "without_genres" to "16,99,10763,10764,10767")
+        UKRAINIAN -> if (type == MediaType.TV) mapOf("with_original_language" to "uk", "without_genres" to "10763,10767")
+        else mapOf("with_original_language" to "uk")
+        INDIAN -> mapOf("with_original_language" to "hi|ta|te|ml|kn")
+        KOREAN_MOVIES -> mapOf("with_original_language" to "ko", "without_genres" to "16")
+        REALITY -> mapOf("with_genres" to "10764")
+        CLASSIC -> mapOf("primary_release_date.lte" to "1989-12-31", "without_genres" to "99")
+        SHORTS -> mapOf("with_runtime.gte" to "1", "with_runtime.lte" to "40")
     }
 
-    /** Жанр, который всегда входит в раздел (для аниме, мультфильмов, документального). */
+    /** Подходит ли фильм разделу (проверка на нашей стороне поверх фильтров TMDB). */
+    fun accepts(item: TmdbItem, type: MediaType): Boolean =
+        if (isBase) classify(item, type) == this else true
+
+    /** Жанр, который всегда входит в раздел (для аниме, мультфильмов, документального, реалити). */
     val fixedGenre: Int?
         get() = when (this) {
             ANIME, CARTOONS -> TmdbGenres.ANIMATION
             DOCS -> TmdbGenres.DOCUMENTARY
+            REALITY -> TmdbGenres.REALITY
             else -> null
         }
 
@@ -72,6 +95,9 @@ enum class Section(val title: String, val types: List<MediaType>) {
             SERIES -> 50
             DORAMAS, ANIME -> 20
             CARTOONS, DOCS -> 15
+            KOREAN_MOVIES, INDIAN, CLASSIC -> 30
+            TURKISH, REALITY, SHORTS -> 10
+            UKRAINIAN -> 5
         }
         val popular = mapOf("sort_by" to "popularity.desc", "vote_count.gte" to minVotes.toString())
         // У новинок голосов ещё мало, а у будущих премьер их нет совсем.
@@ -137,6 +163,75 @@ enum class Section(val title: String, val types: List<MediaType>) {
                 Feed("Найкращі серіали", MediaType.TV, topRated(200)),
                 Feed("Найкращі фільми", MediaType.MOVIE, topRated(300)),
             )
+
+            TURKISH, REALITY -> listOf(
+                Feed("Популярне", MediaType.TV, popular),
+                Feed(
+                    "Зараз виходять", MediaType.TV, popular + mapOf(
+                        "air_date.gte" to today.minusDays(7).toString(),
+                        "air_date.lte" to today.plusDays(7).toString(),
+                    )
+                ),
+                Feed(
+                    "Новинки", MediaType.TV, fresh + mapOf(
+                        "first_air_date.gte" to today.minusDays(240).toString(),
+                        "first_air_date.lte" to today.toString(),
+                    )
+                ),
+                Feed("Найкращі за весь час", MediaType.TV, topRated(if (this@Section == TURKISH) 50 else 30)),
+            )
+
+            UKRAINIAN -> listOf(
+                Feed("Популярні фільми", MediaType.MOVIE, popular),
+                Feed("Популярні серіали", MediaType.TV, popular),
+                Feed(
+                    "Нові фільми", MediaType.MOVIE, fresh + mapOf(
+                        "primary_release_date.gte" to today.minusDays(365).toString(),
+                        "primary_release_date.lte" to today.toString(),
+                    )
+                ),
+                Feed("Найкращі фільми", MediaType.MOVIE, topRated(20)),
+                Feed("Найкращі серіали", MediaType.TV, topRated(10)),
+            )
+
+            INDIAN, KOREAN_MOVIES -> buildList {
+                add(Feed("Популярне", MediaType.MOVIE, popular))
+                add(
+                    Feed(
+                        "Нові фільми", MediaType.MOVIE, fresh + mapOf(
+                            "primary_release_date.gte" to today.minusDays(180).toString(),
+                            "primary_release_date.lte" to today.toString(),
+                        )
+                    )
+                )
+                if (this@Section == INDIAN) add(Feed("Боллівуд (гінді)", MediaType.MOVIE, popular + mapOf("with_original_language" to "hi")))
+                add(Feed("Найкращі за весь час", MediaType.MOVIE, topRated(200)))
+            }
+
+            CLASSIC -> listOf(
+                Feed("Найкращі класичні фільми", MediaType.MOVIE, topRated(1000)),
+                Feed("Популярна класика", MediaType.MOVIE, popular),
+                Feed("1980-ті", MediaType.MOVIE, decade(1980, minVotes)),
+                Feed("1970-ті", MediaType.MOVIE, decade(1970, minVotes)),
+                Feed("1960-ті", MediaType.MOVIE, decade(1960, minVotes)),
+                Feed("1950-ті і раніше", MediaType.MOVIE, mapOf(
+                    "sort_by" to "vote_average.desc",
+                    "vote_count.gte" to "200",
+                    "primary_release_date.lte" to "1959-12-31",
+                )),
+            )
+
+            SHORTS -> listOf(
+                Feed("Популярні", MediaType.MOVIE, popular),
+                Feed("Найкращі", MediaType.MOVIE, topRated(100)),
+                Feed("Анімаційні", MediaType.MOVIE, popular + mapOf("with_genres" to "16")),
+                Feed(
+                    "Нові", MediaType.MOVIE, fresh + mapOf(
+                        "primary_release_date.gte" to today.minusDays(365).toString(),
+                        "primary_release_date.lte" to today.toString(),
+                    )
+                ),
+            )
         }
     }
 
@@ -154,6 +249,13 @@ enum class Section(val title: String, val types: List<MediaType>) {
 
         fun classify(item: TmdbItem, type: MediaType): Section =
             classify(type, item.genreIds, item.originalLanguage)
+
+        private fun decade(start: Int, minVotes: Int) = mapOf(
+            "sort_by" to "vote_average.desc",
+            "vote_count.gte" to (minVotes * 5).toString(),
+            "primary_release_date.gte" to "$start-01-01",
+            "primary_release_date.lte" to "${start + 9}-12-31",
+        )
 
         private fun topRated(minVotes: Int) = mapOf(
             "sort_by" to "vote_average.desc",

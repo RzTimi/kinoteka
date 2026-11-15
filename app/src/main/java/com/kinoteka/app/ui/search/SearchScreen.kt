@@ -141,7 +141,7 @@ fun SearchScreen(onItem: (MediaCard) -> Unit) {
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
                 )
                 Spacer(Modifier.height(8.dp))
-                SectionChips(selected = state.section, onSelect = vm::setSection, showAll = true)
+                SectionChips(selected = state.section, onSelect = vm::setSection, showAll = true, baseOnly = true)
                 Spacer(Modifier.height(4.dp))
             }
         },

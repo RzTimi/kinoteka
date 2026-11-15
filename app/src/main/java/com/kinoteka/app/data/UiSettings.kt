@@ -38,9 +38,7 @@ class UiSettings(context: Context) {
     private val _sectionOrder = MutableStateFlow(loadOrder())
     val sectionOrder: StateFlow<List<Section>> = _sectionOrder.asStateFlow()
 
-    private val _hiddenSections = MutableStateFlow(
-        prefs.getString(KEY_HIDDEN, "").orEmpty().split(',').mapNotNull { Section.fromName(it) }.toSet()
-    )
+    private val _hiddenSections = MutableStateFlow(loadHidden())
     val hiddenSections: StateFlow<Set<Section>> = _hiddenSections.asStateFlow()
 
     fun setScale(value: UiScale) {
@@ -74,6 +72,23 @@ class UiSettings(context: Context) {
         prefs.edit().putString(KEY_ORDER, order.joinToString(",") { it.name }).apply()
     }
 
+    /**
+     * Скрытые разделы. Дополнительные подборки, которых пользователь ещё не видел
+     * (новые в этой версии), по умолчанию скрыты; основные — показаны.
+     */
+    private fun loadHidden(): Set<Section> {
+        val hidden = prefs.getString(KEY_HIDDEN, "").orEmpty().split(',').mapNotNull { Section.fromName(it) }.toMutableSet()
+        val known = prefs.getString(KEY_KNOWN, null)?.split(',')?.mapNotNull { Section.fromName(it) }?.toSet()
+            ?: Section.entries.filter { it.isBase }.toSet() // до этой версии были только основные
+        val newOnes = Section.entries.filter { it !in known }
+        hidden += newOnes.filter { !it.isBase }
+        prefs.edit()
+            .putString(KEY_HIDDEN, hidden.joinToString(",") { it.name })
+            .putString(KEY_KNOWN, Section.entries.joinToString(",") { it.name })
+            .apply()
+        return hidden
+    }
+
     private fun loadOrder(): List<Section> {
         val saved = prefs.getString(KEY_ORDER, null)?.split(',')?.mapNotNull { Section.fromName(it) }.orEmpty()
         // Новые разделы (если появятся в будущих версиях) добавляются в конец.
@@ -85,5 +100,6 @@ class UiSettings(context: Context) {
         const val KEY_STYLE = "section_style"
         const val KEY_ORDER = "section_order"
         const val KEY_HIDDEN = "section_hidden"
+        const val KEY_KNOWN = "section_known"
     }
 }

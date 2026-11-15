@@ -121,7 +121,7 @@ fun LibraryScreen(onItem: (LibraryEntry) -> Unit, onAccount: () -> Unit) {
                         }
                     },
                 )
-                SectionChips(selected = section, onSelect = { sectionName = it?.name }, showAll = true)
+                SectionChips(selected = section, onSelect = { sectionName = it?.name }, showAll = true, baseOnly = true)
                 Spacer(Modifier.height(4.dp))
                 ChipRow(LibraryFilter.entries, filter, { it.label }, { filter = it })
                 Text(
