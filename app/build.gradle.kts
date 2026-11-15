@@ -32,6 +32,7 @@ android {
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbKey\"")
         buildConfigField("String", "OMDB_API_KEY", "\"$omdbKey\"")
+        manifestPlaceholders["appLabel"] = "@string/app_name"
     }
 
     signingConfigs {
@@ -59,6 +60,7 @@ android {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
             applicationIdSuffix = ".bench"
+            manifestPlaceholders["appLabel"] = "Кінотека (тест)"
             matchingFallbacks += listOf("release")
             isDebuggable = false
         }
