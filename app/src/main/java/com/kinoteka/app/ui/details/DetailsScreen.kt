@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -417,17 +420,20 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                     FilterChip(selected = entry?.status == st, onClick = { vm.setStatus(st) }, label = { Text(st.label) })
                 }
             }
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { noteDialog = true }.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    entry?.note?.takeIf { it.isNotBlank() } ?: "Додати нотатку",
-                    color = if (entry?.note.isNullOrBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                )
+            val note = entry?.note?.takeIf { it.isNotBlank() }
+            if (note == null) {
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { noteDialog = true }.padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Додати нотатку", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                Spacer(Modifier.height(16.dp))
+                NoteBlock(note) { noteDialog = true }
             }
         }
     }
@@ -435,13 +441,53 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
         var text by remember { mutableStateOf(entry?.note.orEmpty()) }
         AlertDialog(
             onDismissRequest = { noteDialog = false },
-            title = { Text("Нотатка") },
+            title = { Text("Моя нотатка") },
             text = {
                 OutlinedTextField(text, { text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("Що сподобалось, з ким дивились…") })
             },
             confirmButton = { TextButton(onClick = { vm.setNote(text); noteDialog = false }) { Text("Зберегти") } },
-            dismissButton = { TextButton(onClick = { noteDialog = false }) { Text("Скасувати") } },
+            dismissButton = {
+                Row {
+                    if (!entry?.note.isNullOrBlank()) {
+                        TextButton(onClick = { vm.setNote(""); noteDialog = false }) {
+                            Text("Видалити", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    TextButton(onClick = { noteDialog = false }) { Text("Скасувати") }
+                }
+            },
         )
+    }
+}
+
+/** Ваша нотатка: отдельный выделенный блок-цитата с акцентной полосой слева. */
+@Composable
+private fun NoteBlock(note: String, onEdit: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onEdit),
+    ) {
+        Box(Modifier.width(4.dp).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
+        Column(Modifier.weight(1f).padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.FormatQuote, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Моя нотатка",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(Icons.Default.Edit, "Змінити нотатку", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(note, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 
