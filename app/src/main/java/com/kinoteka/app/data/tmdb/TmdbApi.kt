@@ -39,6 +39,13 @@ interface TmdbApi {
         @Query("language") language: String? = null,
     ): TmdbDetails
 
+    @GET("search/movie")
+    suspend fun searchMovie(
+        @Query("query") query: String,
+        @Query("primary_release_year") year: Int?,
+        @Query("include_adult") includeAdult: Boolean = false,
+    ): PagedResponse<TmdbItem>
+
     /** Сезон сериала со списком серий. */
     @GET("tv/{id}/season/{season}")
     suspend fun season(
@@ -67,14 +74,14 @@ interface TmdbApi {
         const val LANGUAGE = "uk-UA"
         const val REGION = "UA"
 
-        fun create(apiKey: String, client: OkHttpClient): TmdbApi {
+        fun create(apiKey: String, client: OkHttpClient, language: () -> String = { LANGUAGE }): TmdbApi {
             val json = Json {
                 ignoreUnknownKeys = true
                 coerceInputValues = true
                 explicitNulls = false
             }
             val authClient = client.newBuilder()
-                .addInterceptor(authInterceptor(apiKey))
+                .addInterceptor(authInterceptor(apiKey, language))
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build()
@@ -90,10 +97,10 @@ interface TmdbApi {
          * Принимает оба вида ключа TMDB: короткий "API Key" (v3) и длинный
          * "Read Access Token" (начинается с eyJ). Плюс подставляет украинский язык.
          */
-        private fun authInterceptor(apiKey: String) = Interceptor { chain ->
+        private fun authInterceptor(apiKey: String, language: () -> String) = Interceptor { chain ->
             val original = chain.request()
             val url = original.url.newBuilder().apply {
-                if (original.url.queryParameter("language") == null) addQueryParameter("language", LANGUAGE)
+                if (original.url.queryParameter("language") == null) addQueryParameter("language", language())
                 if (!apiKey.startsWith("eyJ")) addQueryParameter("api_key", apiKey)
             }.build()
             val request = original.newBuilder().url(url).apply {

@@ -47,6 +47,9 @@ import com.kinoteka.app.data.Section
 import com.kinoteka.app.ui.about.AboutScreen
 import com.kinoteka.app.ui.settings.SettingsScreen
 import com.kinoteka.app.ui.person.PersonScreen
+import com.kinoteka.app.ui.manual.ManualScreen
+import com.kinoteka.app.ui.stats.StatsScreen
+import com.kinoteka.app.ui.library.ImportDialog
 import com.kinoteka.app.ui.details.DetailsViewModel
 import com.kinoteka.app.ui.details.SeasonScreen
 import com.kinoteka.app.ui.details.displayTitle
@@ -59,6 +62,7 @@ import com.kinoteka.app.ui.account.WelcomeSyncDialog
 import com.kinoteka.app.ui.account.rememberGoogleSignIn
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.kinoteka.app.ui.browse.BrowseScreen
@@ -111,7 +115,9 @@ fun KinotekaRoot(container: AppContainer) {
         if (!container.hasApiKey) {
             NoApiKeyScreen()
         } else {
-            AppScaffold()
+            // Смена языка данных TMDB пересоздаёт экраны, чтобы всё загрузилось заново.
+            val language by container.ui.contentLanguage.collectAsStateWithLifecycle()
+            key(language) { AppScaffold() }
         }
     }
 }
@@ -136,6 +142,8 @@ private fun AppScaffold() {
     val onSection: (Section) -> Unit = { sectionName = it.name }
 
     val openDetails: (MediaCard) -> Unit = { nav.navigate(DetailsRoute(it.type.path, it.id)) }
+    var showImport by remember { mutableStateOf(false) }
+    if (showImport) ImportDialog(onDismiss = { showImport = false })
 
     // Первый запуск: предложить хранить оценки на Google Диске (один раз).
     val sync = LocalContainer.current.sync
@@ -217,13 +225,26 @@ private fun AppScaffold() {
             composable<SearchRoute> { SearchScreen(onItem = openDetails) }
             composable<LibraryRoute> {
                 LibraryScreen(
-                    onItem = { entry -> nav.navigate(DetailsRoute(entry.mediaType, entry.tmdbId)) },
+                    onItem = { entry ->
+                        if (entry.manual) nav.navigate(ManualRoute(entry.key))
+                        else nav.navigate(DetailsRoute(entry.mediaType, entry.tmdbId))
+                    },
                     onAccount = { nav.navigate(AccountRoute) },
+                    onStats = { nav.navigate(StatsRoute) },
+                    onAddManual = { nav.navigate(ManualRoute()) },
+                    onImport = { showImport = true },
                 )
             }
             composable<BrowseRoute> { entry ->
                 val route = entry.toRoute<BrowseRoute>()
                 BrowseScreen(route = route, onBack = { nav.popBackStack() }, onItem = openDetails)
+            }
+            composable<ManualRoute> { entry ->
+                val route = entry.toRoute<ManualRoute>()
+                ManualScreen(key = route.key, onBack = { nav.popBackStack() })
+            }
+            composable<StatsRoute> {
+                StatsScreen(onBack = { nav.popBackStack() })
             }
             composable<PersonRoute> { entry ->
                 val route = entry.toRoute<PersonRoute>()

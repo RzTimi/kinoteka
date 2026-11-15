@@ -266,10 +266,11 @@ class DetailsViewModel(
         val d = (state.value as? UiState.Success)?.data ?: return e
         val total = d.seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount }
         val watched = e.watchedEpisodeCount
+        // Статус меняем только из «пусто»/«Хочу» в «Дивлюсь» и обратно; «Переглянуто» и другие не трогаем.
         val status = when {
             watched == 0 -> e.status.takeIf { it != WatchStatus.WATCHING }
             total > 0 && watched >= total && d.status in setOf("Ended", "Canceled") -> WatchStatus.WATCHED
-            e.status == null || e.status == WatchStatus.WANT || e.status == WatchStatus.WATCHED -> WatchStatus.WATCHING
+            e.status == null || e.status == WatchStatus.WANT -> WatchStatus.WATCHING
             else -> e.status
         }
         return e.copy(status = status)

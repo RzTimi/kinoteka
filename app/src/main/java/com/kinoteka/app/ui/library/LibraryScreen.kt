@@ -23,6 +23,13 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import com.kinoteka.app.ui.stats.snakeLevels
+import com.kinoteka.app.ui.stats.snakePoints
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.foundation.layout.size
@@ -212,12 +219,23 @@ fun LibraryScreen(
                     val options: List<String?> = listOf<String?>(null) + genresInLibrary
                     ChipRow(options, genre, { it ?: "Усі жанри" }, { genre = it })
                 }
-                Text(
-                    stats,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stats,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Змейка-питомец: уровень, нажатие — статистика.
+                    val points = snakePoints(all)
+                    val level = snakeLevels.last { points >= it.from }
+                    Text(
+                        "${level.emoji} ${level.name}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onStats).padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
             }
         },
     ) { padding ->

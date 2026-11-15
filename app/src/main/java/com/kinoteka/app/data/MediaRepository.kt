@@ -51,6 +51,9 @@ class MediaRepository(
 ) {
     val hasOmdb: Boolean get() = omdbKey.isNotBlank()
 
+    /** Сбросить кэш (после смены языка данных). */
+    fun clearCaches() = genreCache.clear()
+
     /** Рейтинг IMDb через OMDb (нужен бесплатный ключ). Возвращает «8.2» и число голосов. */
     suspend fun imdbRating(imdbId: String): Pair<String, String>? {
         if (omdbKey.isBlank()) return null
@@ -69,6 +72,14 @@ class MediaRepository(
             }.getOrNull()
         }
     }
+
+    /** Лёгкий запрос деталей (без актёров, видео и т.п.) — для напоминаний. */
+    suspend fun detailsLite(type: MediaType, id: Int): TmdbDetails = api.details(type.path, id, append = "")
+
+    /** Поиск фильма по названию и году — для импорта. */
+    suspend fun findMovie(title: String, year: Int?): TmdbItem? =
+        api.searchMovie(title, year).results.firstOrNull()
+            ?: if (year != null) api.searchMovie(title, null).results.firstOrNull() else null
 
     /** Сезон: серии. Если у серий нет описаний на украинском — подставляем английские. */
     suspend fun season(tvId: Int, season: Int): com.kinoteka.app.data.tmdb.SeasonDetails {

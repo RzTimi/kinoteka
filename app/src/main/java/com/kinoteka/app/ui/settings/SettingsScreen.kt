@@ -45,6 +45,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinoteka.app.BuildConfig
 import com.kinoteka.app.data.UiScale
 import com.kinoteka.app.data.AppTheme
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.kinoteka.app.data.reminders.Reminders
 import com.kinoteka.app.ui.theme.JungleLeaves
 import com.kinoteka.app.ui.theme.themeSwatch
 import androidx.compose.foundation.background
@@ -125,6 +136,8 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
 
                 SectionStyleCard()
                 SectionsCard()
+                LanguageCard()
+                RemindersCard()
 
                 // Синхронізація и «Про застосунок»
                 Card(Modifier.fillMaxWidth()) {
@@ -212,6 +225,87 @@ private fun ThemeCard() {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Язык данных TMDB. Надписи приложения остаются украинскими. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageCard() {
+    val container = LocalContainer.current
+    val language by container.ui.contentLanguage.collectAsStateWithLifecycle()
+    val options = listOf("uk-UA" to "Українська", "en-US" to "English")
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Translate, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text("Мова назв і описів", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Text(
+                "Назви фільмів, описи та жанри з TMDB. Якщо українського перекладу немає — показуємо англійський.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                options.forEachIndexed { i, (code, label) ->
+                    SegmentedButton(
+                        selected = code == language,
+                        onClick = {
+                            if (code != language) {
+                                container.repository.clearCaches()
+                                container.ui.setContentLanguage(code)
+                            }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                        label = { Text(label) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Напоминания о новых сериях и премьерах (с запросом разрешения на уведомления). */
+@Composable
+private fun RemindersCard() {
+    val context = LocalContext.current
+    val ui = LocalContainer.current.ui
+    val enabled by ui.reminders.collectAsStateWithLifecycle()
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        ui.setReminders(granted)
+        Reminders.schedule(context, granted)
+        if (granted) Reminders.checkNow(context)
+    }
+    fun setEnabled(on: Boolean) {
+        if (on && Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        ui.setReminders(on)
+        Reminders.schedule(context, on)
+        if (on) Reminders.checkNow(context)
+    }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.NotificationsActive, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text("Нагадування", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Switch(checked = enabled, onCheckedChange = ::setEnabled)
+            }
+            Text(
+                "Сповіщення, коли виходить нова серія серіалу зі статусом «Дивлюсь» (сьогодні або завтра) " +
+                    "і коли виходить фільм із «Хочу подивитись». Перевірка двічі на день.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (enabled) {
+                TextButton(onClick = { Reminders.checkNow(context) }) { Text("Перевірити зараз") }
             }
         }
     }

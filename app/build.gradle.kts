@@ -90,4 +90,7 @@ dependencies {
 
     implementation(libs.play.services.auth)
     implementation(libs.kotlinx.coroutines.play.services)
+
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.glance.appwidget)
 }

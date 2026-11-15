@@ -34,6 +34,11 @@ data class SeasonRoute(val tvId: Int, val season: Int, val showTitle: String)
 
 @Serializable data object RouletteRoute
 
+/** Фильм, добавленный вручную: key = null — новый. */
+@Serializable data class ManualRoute(val key: String? = null)
+
+@Serializable data object StatsRoute
+
 object RouteParams {
     private val json = Json
     fun encode(params: Map<String, String>): String = json.encodeToString(params)

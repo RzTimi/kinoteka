@@ -1,33 +1,56 @@
 package com.kinoteka.app
 
 import android.app.Application
+import androidx.glance.appwidget.updateAll
 import com.kinoteka.app.data.MediaRepository
 import com.kinoteka.app.data.UiSettings
 import com.kinoteka.app.data.library.LibraryStore
 import com.kinoteka.app.data.library.PosterStorage
+import com.kinoteka.app.data.reminders.Reminders
 import com.kinoteka.app.data.sync.DriveApi
 import com.kinoteka.app.data.sync.GoogleAuth
 import com.kinoteka.app.data.sync.SyncManager
 import com.kinoteka.app.data.tmdb.TmdbApi
+import com.kinoteka.app.widget.KinotekaWidget
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import okhttp3.OkHttpClient
 
 class KinotekaApp : Application() {
     lateinit var container: AppContainer
         private set
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    @OptIn(FlowPreview::class)
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Напоминания: восстанавливаем расписание при запуске.
+        Reminders.schedule(this, container.ui.reminders.value)
+        // Виджет обновляется через пару секунд после изменений в библиотеке.
+        container.library.entries.drop(1).debounce(2_000).onEach {
+            runCatching { KinotekaWidget().updateAll(this@KinotekaApp) }
+        }.launchIn(appScope)
     }
 }
 
 /** Простейший «контейнер зависимостей»: всё, что нужно экранам. */
 class AppContainer(app: Application) {
     val hasApiKey: Boolean = BuildConfig.TMDB_API_KEY.isNotBlank()
+    val ui = UiSettings(app)
     private val http = OkHttpClient()
-    val repository = MediaRepository(TmdbApi.create(BuildConfig.TMDB_API_KEY, http), http, BuildConfig.OMDB_API_KEY)
+    val repository = MediaRepository(
+        TmdbApi.create(BuildConfig.TMDB_API_KEY, http) { ui.contentLanguage.value },
+        http,
+        BuildConfig.OMDB_API_KEY,
+    )
     val library = LibraryStore(app)
     val posters = PosterStorage(app)
     val sync = SyncManager(app, library, posters, GoogleAuth(app), DriveApi(http))
-    val ui = UiSettings(app)
 }

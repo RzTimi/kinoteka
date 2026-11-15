@@ -47,6 +47,24 @@ class UiSettings(context: Context) {
         prefs.edit().putString(KEY_THEME, value.name).apply()
     }
 
+    private val _reminders = MutableStateFlow(prefs.getBoolean(KEY_REMINDERS, false))
+    /** Напоминания о новых сериях и премьерах. */
+    val reminders: StateFlow<Boolean> = _reminders.asStateFlow()
+
+    fun setReminders(value: Boolean) {
+        _reminders.value = value
+        prefs.edit().putBoolean(KEY_REMINDERS, value).apply()
+    }
+
+    private val _contentLanguage = MutableStateFlow(prefs.getString(KEY_LANGUAGE, null) ?: "uk-UA")
+    /** Язык данных TMDB: названия, описания, жанры. */
+    val contentLanguage: StateFlow<String> = _contentLanguage.asStateFlow()
+
+    fun setContentLanguage(value: String) {
+        _contentLanguage.value = value
+        prefs.edit().putString(KEY_LANGUAGE, value).apply()
+    }
+
     private val _sectionStyle = MutableStateFlow(
         SectionStyle.entries.firstOrNull { it.name == prefs.getString(KEY_STYLE, null) } ?: SectionStyle.CHIPS
     )
@@ -116,6 +134,8 @@ class UiSettings(context: Context) {
     private companion object {
         const val KEY_SCALE = "scale"
         const val KEY_THEME = "theme"
+        const val KEY_REMINDERS = "reminders"
+        const val KEY_LANGUAGE = "content_language"
         const val KEY_STYLE = "section_style"
         const val KEY_ORDER = "section_order"
         const val KEY_HIDDEN = "section_hidden"

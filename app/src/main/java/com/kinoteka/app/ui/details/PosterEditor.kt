@@ -294,7 +294,7 @@ private fun AltBackdrop(img: ImageInfo, isSelected: Boolean, onClick: () -> Unit
 
 /** Обрезка под заданную пропорцию (ширина/высота): постер 2:3 или фон 16:9. */
 @Composable
-private fun CropDialog(bitmap: Bitmap, aspect: Float = 2f / 3f, onCancel: () -> Unit, onDone: (Rect) -> Unit) {
+internal fun CropDialog(bitmap: Bitmap, aspect: Float = 2f / 3f, onCancel: () -> Unit, onDone: (Rect) -> Unit) {
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding().navigationBarsPadding()) {
