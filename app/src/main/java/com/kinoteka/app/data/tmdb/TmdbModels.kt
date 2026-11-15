@@ -30,6 +30,10 @@ data class TmdbItem(
     @SerialName("origin_country") val originCountry: List<String> = emptyList(),
     @SerialName("media_type") val mediaType: String? = null,
     val overview: String? = null,
+    val popularity: Double = 0.0,
+    /** Для фильмографии актёра: роль или должность. */
+    val character: String? = null,
+    val job: String? = null,
 )
 
 @Serializable
@@ -66,6 +70,32 @@ data class TmdbDetails(
     val credits: Credits? = null,
     val videos: Videos? = null,
     @SerialName("watch/providers") val watchProviders: WatchProvidersResponse? = null,
+    val recommendations: PagedResponse<TmdbItem>? = null,
+    val similar: PagedResponse<TmdbItem>? = null,
+    @SerialName("external_ids") val externalIds: ExternalIds? = null,
+)
+
+@Serializable
+data class ExternalIds(@SerialName("imdb_id") val imdbId: String? = null)
+
+@Serializable
+data class PersonDetails(
+    val id: Int,
+    val name: String = "",
+    val biography: String? = null,
+    val birthday: String? = null,
+    val deathday: String? = null,
+    @SerialName("place_of_birth") val placeOfBirth: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+    @SerialName("known_for_department") val knownFor: String? = null,
+    @SerialName("combined_credits") val credits: PersonCredits? = null,
+    @SerialName("external_ids") val externalIds: ExternalIds? = null,
+)
+
+@Serializable
+data class PersonCredits(
+    val cast: List<TmdbItem> = emptyList(),
+    val crew: List<TmdbItem> = emptyList(),
 )
 
 @Serializable

@@ -34,10 +34,18 @@ interface TmdbApi {
     suspend fun details(
         @Path("type") type: String,
         @Path("id") id: Int,
-        @Query("append_to_response") append: String = "credits,videos,watch/providers",
+        @Query("append_to_response") append: String = "credits,videos,watch/providers,recommendations,similar,external_ids",
         @Query("include_video_language") videoLanguages: String = "uk,en,null",
         @Query("language") language: String? = null,
     ): TmdbDetails
+
+    /** Актёр/режиссёр: биография и все фильмы и сериалы. */
+    @GET("person/{id}")
+    suspend fun person(
+        @Path("id") id: Int,
+        @Query("append_to_response") append: String = "combined_credits,external_ids",
+        @Query("language") language: String? = null,
+    ): PersonDetails
 
     /** Все постеры фильма/сериала: украинские, английские и без текста. */
     @GET("{type}/{id}/images")
@@ -93,6 +101,6 @@ object TmdbImages {
     private const val BASE = "https://image.tmdb.org/t/p/"
     fun poster(path: String?, size: String = "w342") = path?.let { BASE + size + it }
     fun backdrop(path: String?, size: String = "w1280") = path?.let { BASE + size + it }
-    fun profile(path: String?) = path?.let { BASE + "w185" + it }
+    fun profile(path: String?, size: String = "w185") = path?.let { BASE + size + it }
     fun logo(path: String?) = path?.let { BASE + "w92" + it }
 }

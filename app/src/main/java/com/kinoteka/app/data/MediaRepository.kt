@@ -5,6 +5,15 @@ import com.kinoteka.app.data.tmdb.ImageInfo
 import com.kinoteka.app.data.tmdb.TmdbApi
 import com.kinoteka.app.data.tmdb.TmdbDetails
 import com.kinoteka.app.data.tmdb.TmdbItem
+import com.kinoteka.app.data.tmdb.PersonDetails
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
@@ -29,7 +38,98 @@ data class PageResult(val items: List<MediaCard>, val page: Int, val totalPages:
     val hasMore: Boolean get() = page < totalPages
 }
 
-class MediaRepository(private val api: TmdbApi) {
+/** Фильм/сериал в фильмографии актёра: карточка + роль. */
+data class PersonCredit(val card: MediaCard, val role: String?, val date: String?)
+
+/** Страница актёра. */
+data class PersonPage(val person: PersonDetails, val knownFor: List<MediaCard>, val credits: List<PersonCredit>)
+
+class MediaRepository(
+    private val api: TmdbApi,
+    private val http: OkHttpClient = OkHttpClient(),
+    private val omdbKey: String = "",
+) {
+    val hasOmdb: Boolean get() = omdbKey.isNotBlank()
+
+    /** Рейтинг IMDb через OMDb (нужен бесплатный ключ). Возвращает «8.2» и число голосов. */
+    suspend fun imdbRating(imdbId: String): Pair<String, String>? {
+        if (omdbKey.isBlank()) return null
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val url = "https://www.omdbapi.com/".toHttpUrl().newBuilder()
+                    .addQueryParameter("i", imdbId)
+                    .addQueryParameter("apikey", omdbKey)
+                    .build()
+                http.newCall(Request.Builder().url(url).build()).execute().use { resp ->
+                    val obj = Json.parseToJsonElement(resp.body.string()).jsonObject
+                    val rating = obj["imdbRating"]?.jsonPrimitive?.content
+                    val votes = obj["imdbVotes"]?.jsonPrimitive?.content.orEmpty()
+                    if (rating == null || rating == "N/A") null else rating to votes
+                }
+            }.getOrNull()
+        }
+    }
+
+    /** Актёр: биография (если нет на украинском — английская), известные работы и фильмография. */
+    suspend fun person(id: Int): PersonPage {
+        var person = api.person(id)
+        if (person.biography.isNullOrBlank()) {
+            val en = runCatching { api.person(id, append = "", language = "en-US") }.getOrNull()
+            if (!en?.biography.isNullOrBlank()) person = person.copy(biography = en?.biography)
+        }
+        val credits = person.credits ?: com.kinoteka.app.data.tmdb.PersonCredits()
+        // Убираем ток-шоу, новости и реалити, где человек «играет себя».
+        fun relevant(item: TmdbItem): Boolean {
+            val selfRole = item.character?.let { c -> listOf("Self", "Himself", "Herself", "себе").any { c.contains(it, ignoreCase = true) } } == true
+            return item.genreIds.none { it == TmdbGenres.TALK || it == TmdbGenres.NEWS || it == TmdbGenres.REALITY } && !selfRole
+        }
+        val crewJobs = setOf("Director", "Screenplay", "Writer", "Creator", "Novel", "Story")
+        val all = (credits.cast.filter(::relevant).map { it to it.character } +
+            credits.crew.filter { it.job in crewJobs && relevant(it) }.map { it to jobLabel(it.job) })
+            .mapNotNull { (item, role) ->
+                val type = MediaType.fromPath(item.mediaType) ?: return@mapNotNull null
+                PersonCredit(item.toCard(type), role?.takeIf { it.isNotBlank() }, item.releaseDate ?: item.firstAirDate)
+            }
+            .groupBy { it.card.key }
+            .map { (_, list) -> list.first().copy(role = list.mapNotNull { it.role }.distinct().joinToString(", ").ifBlank { null }) }
+            .sortedByDescending { it.date.orEmpty() }
+        val knownFor = (credits.cast + credits.crew).filter(::relevant)
+            .sortedByDescending { it.voteCount }
+            .mapNotNull { item -> MediaType.fromPath(item.mediaType)?.let { item.toCard(it) } }
+            .filter { it.posterPath != null }
+            .distinctBy { it.key }
+            .take(15)
+        return PersonPage(person, knownFor, all)
+    }
+
+    private fun jobLabel(job: String?) = when (job) {
+        "Director" -> "Режисер"
+        "Screenplay", "Writer", "Story" -> "Сценарист"
+        "Creator" -> "Автор ідеї"
+        "Novel" -> "Автор книги"
+        else -> job
+    }
+
+    /**
+     * Кандидаты для рулетки: популярные фильмы раздела со случайной страницы,
+     * с фильтром по жанру и длительности (в минутах).
+     */
+    suspend fun rouletteCandidates(section: Section, type: MediaType, genreId: Int?, runtime: IntRange?): List<MediaCard> {
+        val extra = buildMap {
+            put("sort_by", "popularity.desc")
+            put("vote_count.gte", if (section.isBase) "150" else "20")
+            genreId?.let { put("with_genres", it.toString()) }
+            runtime?.let {
+                put("with_runtime.gte", it.first.toString())
+                if (it.last < 1000) put("with_runtime.lte", it.last.toString())
+            }
+        }
+        val first = discover(section, type, extra, 1)
+        val maxPage = first.totalPages.coerceIn(1, 8)
+        val page = if (maxPage > 1) (1..maxPage).random() else 1
+        val result = if (page == 1) first else discover(section, type, extra, page)
+        return (result.items.ifEmpty { first.items }).filter { it.posterPath != null }
+    }
 
     private val genreCache = mutableMapOf<MediaType, List<Genre>>()
     private val genreMutex = Mutex()

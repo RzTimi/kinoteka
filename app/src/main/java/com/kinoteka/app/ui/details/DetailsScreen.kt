@@ -85,6 +85,9 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import com.kinoteka.app.data.library.WatchStatus
 import com.kinoteka.app.data.mediaKey
+import com.kinoteka.app.data.MediaCard
+import com.kinoteka.app.data.toCard
+import com.kinoteka.app.ui.components.MediaRow
 import com.kinoteka.app.data.tmdb.CastMember
 import com.kinoteka.app.data.tmdb.Provider
 import com.kinoteka.app.data.tmdb.TmdbApi
@@ -144,11 +147,18 @@ class DetailsViewModel(
 
     init { load() }
 
+    /** Рейтинг IMDb (если задан ключ OMDb): «8.2» и число голосов. */
+    private val _imdb = MutableStateFlow<Pair<String, String>?>(null)
+    val imdb = _imdb.asStateFlow()
+
     fun load() {
         _state.value = UiState.Loading
         viewModelScope.launch {
-            _state.value = runCatching { repo.details(type, id) }
-                .fold({ UiState.Success(it) }, { UiState.Error(it.friendlyMessage()) })
+            val result = runCatching { repo.details(type, id) }
+            _state.value = result.fold({ UiState.Success(it) }, { UiState.Error(it.friendlyMessage()) })
+            result.getOrNull()?.externalIds?.imdbId?.takeIf { it.isNotBlank() }?.let { imdbId ->
+                _imdb.value = repo.imdbRating(imdbId)
+            }
         }
     }
 
@@ -188,7 +198,12 @@ fun TmdbDetails.displayTitle(type: MediaType): String =
 fun TmdbDetails.year(): String? = (releaseDate ?: firstAirDate)?.take(4)?.takeIf { it.isNotBlank() }
 
 @Composable
-fun DetailsScreen(route: DetailsRoute, onBack: () -> Unit) {
+fun DetailsScreen(
+    route: DetailsRoute,
+    onBack: () -> Unit,
+    onOpen: (MediaCard) -> Unit,
+    onPerson: (Int) -> Unit,
+) {
     val container = LocalContainer.current
     val type = MediaType.fromPath(route.type) ?: MediaType.MOVIE
     val vm: DetailsViewModel = viewModel {
@@ -201,7 +216,7 @@ fun DetailsScreen(route: DetailsRoute, onBack: () -> Unit) {
         when (val s = state) {
             UiState.Loading -> LoadingBox()
             is UiState.Error -> ErrorBox(s.message, vm::load)
-            is UiState.Success -> DetailsContent(s.data, type, entry, vm)
+            is UiState.Success -> DetailsContent(s.data, type, entry, vm, onOpen, onPerson)
         }
         BackButton(onBack)
     }
@@ -219,8 +234,17 @@ private fun BackButton(onBack: () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailsContent(d: TmdbDetails, type: MediaType, entry: LibraryEntry?, vm: DetailsViewModel) {
+private fun DetailsContent(
+    d: TmdbDetails,
+    type: MediaType,
+    entry: LibraryEntry?,
+    vm: DetailsViewModel,
+    onOpen: (MediaCard) -> Unit,
+    onPerson: (Int) -> Unit,
+) {
     val uri = LocalUriHandler.current
+    val imdb by vm.imdb.collectAsStateWithLifecycle()
+    val imdbId = d.externalIds?.imdbId?.takeIf { it.isNotBlank() }
     val title = d.displayTitle(type)
     val original = (d.originalTitle ?: d.originalName)?.takeIf { it != title }
     val section = Section.classify(type, d.genres.map { it.id }, d.originalLanguage)
@@ -289,6 +313,10 @@ private fun DetailsContent(d: TmdbDetails, type: MediaType, entry: LibraryEntry?
                                 Text(formatRating(d.voteAverage), fontWeight = FontWeight.Bold)
                                 Text("  TMDB · ${d.voteCount} голосів", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                        }
+                        if (imdbId != null) {
+                            Spacer(Modifier.height(6.dp))
+                            ImdbBadge(imdb) { uri.openUri("https://www.imdb.com/title/$imdbId/") }
                         }
                     }
                 }
@@ -372,9 +400,25 @@ private fun DetailsContent(d: TmdbDetails, type: MediaType, entry: LibraryEntry?
             item { SectionTitle("Актори") }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(cast, key = { "${it.id}_${it.character}" }) { CastItem(it) }
+                    items(cast, key = { "${it.id}_${it.character}" }) { c -> CastItem(c) { onPerson(c.id) } }
                 }
             }
+        }
+
+        // «Рекомендації» (TMDB по оценкам зрителей) и «Схожі» (по жанрам и ключевым словам).
+        val recs = d.recommendations?.results.orEmpty()
+            .mapNotNull { item -> (MediaType.fromPath(item.mediaType) ?: type).let { t -> item.toCard(t) } }
+            .filter { it.posterPath != null }
+        val similar = d.similar?.results.orEmpty()
+            .map { it.toCard(type) }
+            .filter { it.posterPath != null && recs.none { r -> r.key == it.key } }
+        if (recs.isNotEmpty()) item {
+            Spacer(Modifier.height(20.dp))
+            MediaRow("Рекомендації", recs, onOpen, onMore = null)
+        }
+        if (similar.isNotEmpty()) item {
+            Spacer(Modifier.height(20.dp))
+            MediaRow("Схожі", similar, onOpen, onMore = null)
         }
     }
 }
@@ -547,9 +591,36 @@ private fun ProviderRow(label: String, providers: List<Provider>, onClick: () ->
     }
 }
 
+/** Жёлтый значок IMDb: с оценкой, если есть ключ OMDb, иначе просто ссылка. */
 @Composable
-private fun CastItem(c: CastMember) {
-    Column(Modifier.width(84.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ImdbBadge(rating: Pair<String, String>?, onClick: () -> Unit) {
+    Row(
+        Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xFFF5C518)).padding(horizontal = 6.dp, vertical = 1.dp),
+        ) {
+            Text("IMDb", color = Color.Black, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelMedium)
+        }
+        Spacer(Modifier.width(6.dp))
+        if (rating != null) {
+            Text(rating.first, fontWeight = FontWeight.Bold)
+            if (rating.second.isNotBlank()) {
+                Text("  · ${rating.second} голосів", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            Text("Відкрити на IMDb", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun CastItem(c: CastMember, onClick: () -> Unit) {
+    Column(
+        Modifier.width(84.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Box(
             Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,

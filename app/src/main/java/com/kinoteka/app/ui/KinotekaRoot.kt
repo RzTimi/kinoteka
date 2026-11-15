@@ -46,6 +46,8 @@ import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.ui.about.AboutScreen
 import com.kinoteka.app.ui.settings.SettingsScreen
+import com.kinoteka.app.ui.person.PersonScreen
+import com.kinoteka.app.ui.roulette.RouletteScreen
 import com.kinoteka.app.ui.account.AccountScreen
 import com.kinoteka.app.ui.account.WelcomeSyncDialog
 import com.kinoteka.app.ui.account.rememberGoogleSignIn
@@ -183,6 +185,7 @@ private fun AppScaffold() {
                         nav.navigate(BrowseRoute(section.name, feed.type.path, feed.title, RouteParams.encode(feed.params)))
                     },
                     onSettings = { nav.navigate(SettingsRoute) },
+                    onRoulette = { nav.navigate(RouletteRoute) },
                 )
             }
             composable<SettingsRoute> {
@@ -216,9 +219,21 @@ private fun AppScaffold() {
                 val route = entry.toRoute<BrowseRoute>()
                 BrowseScreen(route = route, onBack = { nav.popBackStack() }, onItem = openDetails)
             }
+            composable<PersonRoute> { entry ->
+                val route = entry.toRoute<PersonRoute>()
+                PersonScreen(id = route.id, onBack = { nav.popBackStack() }, onOpen = openDetails)
+            }
+            composable<RouletteRoute> {
+                RouletteScreen(onBack = { nav.popBackStack() }, onOpen = openDetails, section = section)
+            }
             composable<DetailsRoute> { entry ->
                 val route = entry.toRoute<DetailsRoute>()
-                DetailsScreen(route = route, onBack = { nav.popBackStack() })
+                DetailsScreen(
+                    route = route,
+                    onBack = { nav.popBackStack() },
+                    onOpen = openDetails,
+                    onPerson = { nav.navigate(PersonRoute(it)) },
+                )
             }
         }
     }

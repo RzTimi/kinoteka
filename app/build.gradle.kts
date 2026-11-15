@@ -11,6 +11,8 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 val tmdbKey: String = (localProps.getProperty("TMDB_API_KEY") ?: "").trim()
+// Необязательный ключ OMDb (omdbapi.com) — для рейтинга IMDb.
+val omdbKey: String = (localProps.getProperty("OMDB_API_KEY") ?: "").trim()
 
 // Ключ подписи релиза: keystore.properties в корне проекта (не попадает в git).
 val keystoreProps = Properties().apply {
@@ -29,6 +31,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbKey\"")
+        buildConfigField("String", "OMDB_API_KEY", "\"$omdbKey\"")
     }
 
     signingConfigs {

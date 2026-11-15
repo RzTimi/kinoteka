@@ -25,6 +25,11 @@ data class BrowseRoute(
 @Serializable
 data class DetailsRoute(val type: String, val id: Int)
 
+@Serializable
+data class PersonRoute(val id: Int)
+
+@Serializable data object RouletteRoute
+
 object RouteParams {
     private val json = Json
     fun encode(params: Map<String, String>): String = json.encodeToString(params)

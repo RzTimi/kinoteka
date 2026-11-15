@@ -25,7 +25,7 @@ class KinotekaApp : Application() {
 class AppContainer(app: Application) {
     val hasApiKey: Boolean = BuildConfig.TMDB_API_KEY.isNotBlank()
     private val http = OkHttpClient()
-    val repository = MediaRepository(TmdbApi.create(BuildConfig.TMDB_API_KEY, http))
+    val repository = MediaRepository(TmdbApi.create(BuildConfig.TMDB_API_KEY, http), http, BuildConfig.OMDB_API_KEY)
     val library = LibraryStore(app)
     val posters = PosterStorage(app)
     val sync = SyncManager(app, library, posters, GoogleAuth(app), DriveApi(http))

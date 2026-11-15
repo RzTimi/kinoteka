@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Casino
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.TopAppBarDefaults
@@ -82,6 +83,7 @@ fun HomeScreen(
     onItem: (MediaCard) -> Unit,
     onMore: (Feed) -> Unit,
     onSettings: () -> Unit,
+    onRoulette: () -> Unit,
 ) {
     val repo = LocalContainer.current.repository
     // Отдельная ViewModel на каждый раздел: при переключении назад всё уже загружено.
@@ -99,6 +101,7 @@ fun HomeScreen(
                     TopAppBar(
                         title = { Text(if (jungle) "Кінотека 🐍" else "Кінотека", fontWeight = FontWeight.Bold) },
                         actions = {
+                            IconButton(onClick = onRoulette) { Icon(Icons.Outlined.Casino, "Що подивитись?") }
                             IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "Налаштування") }
                         },
                         colors = if (jungle) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
