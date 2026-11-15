@@ -1,7 +1,9 @@
 package com.kinoteka.app.data.tmdb
 
 import kotlinx.serialization.json.Json
+import okhttp3.CacheControl
 import okhttp3.Interceptor
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -82,6 +84,7 @@ interface TmdbApi {
             }
             val authClient = client.newBuilder()
                 .addInterceptor(authInterceptor(apiKey, language))
+                .addInterceptor(offlineFallback())
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build()
@@ -91,6 +94,26 @@ interface TmdbApi {
                 .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
                 .build()
                 .create(TmdbApi::class.java)
+        }
+
+        /**
+         * Нет интернета — отдаём то, что уже загружали (до 7 дней назад), из дискового кэша.
+         * Если в кэше ничего нет — пробрасываем исходную ошибку сети.
+         */
+        private fun offlineFallback() = Interceptor { chain ->
+            try {
+                chain.proceed(chain.request())
+            } catch (e: IOException) {
+                val cached = chain.proceed(
+                    chain.request().newBuilder()
+                        .cacheControl(CacheControl.Builder().onlyIfCached().maxStale(7, TimeUnit.DAYS).build())
+                        .build()
+                )
+                if (cached.isSuccessful) cached else {
+                    cached.close()
+                    throw e
+                }
+            }
         }
 
         /**

@@ -20,7 +20,9 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import okhttp3.Cache
 import okhttp3.OkHttpClient
+import java.io.File
 
 class KinotekaApp : Application() {
     lateinit var container: AppContainer
@@ -44,7 +46,10 @@ class KinotekaApp : Application() {
 class AppContainer(app: Application) {
     val hasApiKey: Boolean = BuildConfig.TMDB_API_KEY.isNotBlank()
     val ui = UiSettings(app)
-    private val http = OkHttpClient()
+    // Дисковый HTTP-кэш: ответы TMDB живут по их заголовкам (~6 часов), без интернета — до 7 дней.
+    private val http = OkHttpClient.Builder()
+        .cache(Cache(File(app.cacheDir, "http"), 30L * 1024 * 1024))
+        .build()
     val repository = MediaRepository(
         TmdbApi.create(BuildConfig.TMDB_API_KEY, http) { ui.contentLanguage.value },
         http,

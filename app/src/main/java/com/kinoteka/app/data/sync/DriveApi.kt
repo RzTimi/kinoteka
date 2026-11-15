@@ -44,7 +44,8 @@ private data class FileList(
  * Всё через обычные HTTP-запросы, без тяжёлых библиотек Google.
  */
 class DriveApi(http: OkHttpClient) {
-    private val client = http.newBuilder().build()
+    // Без HTTP-кэша: синхронизация всегда должна видеть свежий data.json.
+    private val client = http.newBuilder().cache(null).build()
     private val json = Json { ignoreUnknownKeys = true }
     private val jsonType = "application/json; charset=UTF-8".toMediaType()
 

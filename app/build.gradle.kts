@@ -48,8 +48,19 @@ android {
     buildTypes {
         release {
             if (!keystoreProps.isEmpty) signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            // R8: ужимает и оптимизирует код, убирает неиспользуемые ресурсы.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        // Для замеров скорости: как релиз, но с отладочной подписью и отдельным пакетом,
+        // чтобы ставиться рядом с основной версией.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".bench"
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
         }
     }
 

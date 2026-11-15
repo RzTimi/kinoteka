@@ -198,7 +198,7 @@ class MediaRepository(
     }
 
     /** Лента для главной: добираем страницы, пока не наберётся достаточно карточек. */
-    suspend fun feed(section: Section, feed: Feed, minItems: Int = 14, maxPages: Int = 3): List<MediaCard> {
+    suspend fun feed(section: Section, feed: Feed, minItems: Int = 14, maxPages: Int = 2): List<MediaCard> {
         val result = LinkedHashMap<String, MediaCard>()
         var page = 1
         while (page <= maxPages) {
