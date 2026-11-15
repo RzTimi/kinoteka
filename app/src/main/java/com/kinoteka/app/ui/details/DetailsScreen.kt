@@ -413,7 +413,11 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                 )
             }
             Spacer(Modifier.height(8.dp))
-            RatingStars(entry?.rating, onRate = vm::rate)
+            SnakeRating(
+                rating = entry?.rating,
+                onRate = vm::rate,
+                onClear = { entry?.rating?.let(vm::rate) },
+            )
             Spacer(Modifier.height(12.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WatchStatus.entries.filter { !it.tvOnly || type == MediaType.TV }.forEach { st ->
@@ -487,21 +491,6 @@ private fun NoteBlock(note: String, onEdit: () -> Unit) {
             }
             Spacer(Modifier.height(6.dp))
             Text(note, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-        }
-    }
-}
-
-@Composable
-private fun RatingStars(rating: Int?, onRate: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        for (i in 1..10) {
-            val filled = rating != null && i <= rating
-            Icon(
-                if (filled) Icons.Default.Star else Icons.Outlined.StarOutline,
-                contentDescription = "Оцінка $i",
-                tint = if (filled) StarColor else MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(30.dp).clip(CircleShape).clickable { onRate(i) }.padding(2.dp),
-            )
         }
     }
 }

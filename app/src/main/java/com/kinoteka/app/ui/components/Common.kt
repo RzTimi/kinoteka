@@ -172,11 +172,13 @@ fun PosterCard(
                 )
             }
             if (myRating != null) {
+                // Моя оценка — змейка 🐍 (у рейтинга TMDB остаётся звёздочка).
                 Badge(
                     text = "$myRating",
                     modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
-                    background = MaterialTheme.colorScheme.primary,
-                    content = MaterialTheme.colorScheme.onPrimary,
+                    background = Color(0xFF2E7D32),
+                    content = Color.White,
+                    emoji = "🐍",
                 )
             }
         }
@@ -189,7 +191,7 @@ fun PosterCard(
 }
 
 @Composable
-private fun Badge(text: String, modifier: Modifier, background: Color, content: Color) {
+private fun Badge(text: String, modifier: Modifier, background: Color, content: Color, emoji: String? = null) {
     Row(
         modifier
             .clip(RoundedCornerShape(6.dp))
@@ -197,7 +199,8 @@ private fun Badge(text: String, modifier: Modifier, background: Color, content: 
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Default.Star, null, tint = if (content == Color.White) StarColor else content, modifier = Modifier.size(14.dp))
+        if (emoji != null) Text(emoji, style = MaterialTheme.typography.labelMedium)
+        else Icon(Icons.Default.Star, null, tint = StarColor, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(3.dp))
         Text(text, color = content, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
     }
