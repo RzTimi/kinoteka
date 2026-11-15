@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Kinoteka" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
+    </style>
+    <color name="splash_bg">#FF121016</color>
+    <color name="ic_launcher_background">#FF1B1622</color>
+</resources>
