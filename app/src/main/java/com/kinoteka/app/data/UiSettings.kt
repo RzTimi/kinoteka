@@ -12,6 +12,14 @@ enum class UiScale(val label: String, val factor: Float) {
     XLARGE("Дуже великий", 1.3f),
 }
 
+/** Тема оформления. */
+enum class AppTheme(val label: String) {
+    SYSTEM("Системна"),
+    LIGHT("Світла"),
+    DARK("Темна"),
+    JUNGLE("Джунглі"),
+}
+
 /** Как выглядят кнопки разделов (Фільми, Серіали…). */
 enum class SectionStyle(val label: String) {
     CHIPS("Таблетки"),
@@ -28,6 +36,16 @@ class UiSettings(context: Context) {
         UiScale.entries.firstOrNull { it.name == prefs.getString(KEY_SCALE, null) } ?: UiScale.NORMAL
     )
     val scale: StateFlow<UiScale> = _scale.asStateFlow()
+
+    private val _theme = MutableStateFlow(
+        AppTheme.entries.firstOrNull { it.name == prefs.getString(KEY_THEME, null) } ?: AppTheme.SYSTEM
+    )
+    val theme: StateFlow<AppTheme> = _theme.asStateFlow()
+
+    fun setTheme(value: AppTheme) {
+        _theme.value = value
+        prefs.edit().putString(KEY_THEME, value.name).apply()
+    }
 
     private val _sectionStyle = MutableStateFlow(
         SectionStyle.entries.firstOrNull { it.name == prefs.getString(KEY_STYLE, null) } ?: SectionStyle.CHIPS
@@ -97,6 +115,7 @@ class UiSettings(context: Context) {
 
     private companion object {
         const val KEY_SCALE = "scale"
+        const val KEY_THEME = "theme"
         const val KEY_STYLE = "section_style"
         const val KEY_ORDER = "section_order"
         const val KEY_HIDDEN = "section_hidden"

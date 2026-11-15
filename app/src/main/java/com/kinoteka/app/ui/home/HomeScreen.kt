@@ -11,6 +11,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import com.kinoteka.app.data.AppTheme
+import com.kinoteka.app.ui.theme.JungleLeaves
+import com.kinoteka.app.ui.theme.LocalAppTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -86,12 +92,19 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column {
-                TopAppBar(
-                    title = { Text("Кінотека", fontWeight = FontWeight.Bold) },
-                    actions = {
-                        IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "Налаштування") }
-                    },
-                )
+                val jungle = LocalAppTheme.current == AppTheme.JUNGLE
+                Box {
+                    // В джунглях за шапкой свисают листья и лиана.
+                    if (jungle) JungleLeaves(Modifier.matchParentSize())
+                    TopAppBar(
+                        title = { Text(if (jungle) "Кінотека 🐍" else "Кінотека", fontWeight = FontWeight.Bold) },
+                        actions = {
+                            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "Налаштування") }
+                        },
+                        colors = if (jungle) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                        else TopAppBarDefaults.topAppBarColors(),
+                    )
+                }
                 SectionChips(selected = section, onSelect = { it?.let(onSection) })
             }
         },

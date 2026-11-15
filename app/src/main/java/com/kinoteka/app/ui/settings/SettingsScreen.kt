@@ -44,6 +44,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kinoteka.app.BuildConfig
 import com.kinoteka.app.data.UiScale
+import com.kinoteka.app.data.AppTheme
+import com.kinoteka.app.ui.theme.JungleLeaves
+import com.kinoteka.app.ui.theme.themeSwatch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.ui.draw.clip
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.SectionStyle
 import com.kinoteka.app.ui.components.LocalSectionPrefs
@@ -83,6 +95,8 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
                 Modifier.widthIn(max = 640.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                ThemeCard()
+
                 // Вигляд
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -126,6 +140,75 @@ fun SettingsScreen(onBack: () -> Unit, onAccount: () -> Unit, onAbout: () -> Uni
                             title = "Про застосунок",
                             subtitle = "Версія ${BuildConfig.VERSION_NAME}, джерела даних",
                             onClick = onAbout,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Выбор темы: четыре образца с цветами фона, карточки и акцента. */
+@Composable
+private fun ThemeCard() {
+    val ui = LocalContainer.current.ui
+    val current by ui.theme.collectAsStateWithLifecycle()
+    val systemDark = isSystemInDarkTheme()
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text("Тема", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AppTheme.entries.forEach { theme ->
+                    val (bg, card, accent) = themeSwatch(theme, systemDark)
+                    val selected = theme == current
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable { ui.setTheme(theme) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(0.8f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(bg)
+                                .border(
+                                    if (selected) 3.dp else 1.dp,
+                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    RoundedCornerShape(12.dp),
+                                ),
+                        ) {
+                            if (theme == AppTheme.JUNGLE) JungleLeaves(Modifier.fillMaxWidth().height(28.dp))
+                            if (theme == AppTheme.SYSTEM) {
+                                // Половина светлая, половина тёмная.
+                                val (darkBg, _, _) = themeSwatch(AppTheme.DARK, true)
+                                Box(Modifier.fillMaxSize().padding(start = 0.dp)) {
+                                    Box(Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd).background(darkBg))
+                                }
+                            }
+                            Column(Modifier.align(Alignment.BottomCenter).padding(8.dp).fillMaxWidth()) {
+                                Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(4.dp)).background(card))
+                                Spacer(Modifier.height(5.dp))
+                                Box(Modifier.fillMaxWidth(0.6f).height(10.dp).clip(RoundedCornerShape(4.dp)).background(accent))
+                            }
+                            if (selected) {
+                                Icon(
+                                    Icons.Default.CheckCircle, null,
+                                    Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            theme.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            maxLines = 1,
                         )
                     }
                 }
