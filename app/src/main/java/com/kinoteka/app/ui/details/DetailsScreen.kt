@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -173,8 +176,11 @@ class DetailsViewModel(
     }
 
     fun setStatus(status: WatchStatus) = edit { e -> e.copy(status = if (e.status == status) null else status) }
+    fun toggleFavorite() = edit { e -> e.copy(favorite = !e.favorite) }
     fun setNote(note: String) = edit { e -> e.copy(note = note.trim()) }
 }
+
+val FavoriteRed = Color(0xFFE53950)
 
 fun TmdbDetails.displayTitle(type: MediaType): String =
     (if (type == MediaType.MOVIE) title ?: name else name ?: title) ?: originalTitle ?: originalName ?: "—"
@@ -423,6 +429,22 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                 WatchStatus.entries.filter { !it.tvOnly || type == MediaType.TV }.forEach { st ->
                     FilterChip(selected = entry?.status == st, onClick = { vm.setStatus(st) }, label = { Text(st.label) })
                 }
+                // «Улюблене» — отдельная метка, совмещается с любым статусом.
+                val fav = entry?.favorite == true
+                FilterChip(
+                    selected = fav,
+                    onClick = vm::toggleFavorite,
+                    label = { Text("Улюблене") },
+                    leadingIcon = {
+                        Icon(
+                            if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            null,
+                            Modifier.size(FilterChipDefaults.IconSize),
+                            tint = FavoriteRed,
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = FavoriteRed.copy(alpha = 0.15f)),
+                )
             }
             val note = entry?.note?.takeIf { it.isNotBlank() }
             if (note == null) {

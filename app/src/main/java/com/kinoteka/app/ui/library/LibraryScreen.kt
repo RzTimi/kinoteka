@@ -50,14 +50,25 @@ import com.kinoteka.app.ui.components.SectionChips
 import java.util.Locale
 
 private enum class LibraryFilter(val label: String) {
-    ALL("Усі"), RATED("Оцінені"), WANT("Хочу"), WATCHING("Дивлюсь"), WATCHED("Переглянуто"), DROPPED("Кинув");
+    ALL("Усі"),
+    FAVORITE("❤ Улюблене"),
+    RATED("Оцінені"),
+    WANT("Хочу"),
+    WATCHING("Дивлюсь"),
+    REWATCHING("Переглядаю"),
+    WATCHED("Переглянуто"),
+    ON_HOLD("Відкладено"),
+    DROPPED("Кинув");
 
     fun matches(e: LibraryEntry) = when (this) {
         ALL -> true
+        FAVORITE -> e.favorite
         RATED -> e.rating != null
         WANT -> e.status == WatchStatus.WANT
         WATCHING -> e.status == WatchStatus.WATCHING
+        REWATCHING -> e.status == WatchStatus.REWATCHING
         WATCHED -> e.status == WatchStatus.WATCHED
+        ON_HOLD -> e.status == WatchStatus.ON_HOLD
         DROPPED -> e.status == WatchStatus.DROPPED
     }
 }
@@ -152,7 +163,7 @@ fun LibraryScreen(onItem: (LibraryEntry) -> Unit, onAccount: () -> Unit) {
                     PosterCard(
                         title = e.title,
                         posterPath = e.posterPath,
-                        subtitle = listOfNotNull(e.year, e.status?.label).joinToString(" · "),
+                        subtitle = listOfNotNull(if (e.favorite) "❤" else null, e.year, e.status?.label).joinToString(" · "),
                         tmdbRating = null,
                         myRating = e.rating,
                         onClick = { onItem(e) },

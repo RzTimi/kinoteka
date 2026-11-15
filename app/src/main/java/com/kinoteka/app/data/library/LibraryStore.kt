@@ -18,10 +18,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 
+/** Статусы как у MyAnimeList / Shikimori. Порядок = порядок кнопок. */
 enum class WatchStatus(val label: String, val tvOnly: Boolean = false) {
     WANT("Хочу подивитись"),
     WATCHING("Дивлюсь", tvOnly = true),
+    REWATCHING("Переглядаю"),
     WATCHED("Переглянуто"),
+    ON_HOLD("Відкладено", tvOnly = true),
     DROPPED("Кинув"),
 }
 
@@ -42,12 +45,15 @@ data class LibraryEntry(
      * "file:имя.jpg" (картинка из галереи, лежит в files/posters). null = оригинальный.
      */
     val customPoster: String? = null,
+    /** Метка «Улюблене» ❤ — независимо от статуса. */
+    val favorite: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
     val type: MediaType get() = MediaType.fromPath(mediaType) ?: MediaType.MOVIE
     val sectionEnum: Section get() = Section.fromName(section) ?: Section.MOVIES
     val key: String get() = mediaKey(type, tmdbId)
-    val isEmpty: Boolean get() = rating == null && status == null && note.isBlank() && customPoster == null
+    val isEmpty: Boolean
+        get() = rating == null && status == null && note.isBlank() && customPoster == null && !favorite
 }
 
 @Serializable
