@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -98,6 +100,8 @@ fun PosterEditor(
     title: String,
     originalPoster: String?,
     customPoster: String?,
+    /** true — редактируем фон карточки (16:9), а не постер. */
+    backdrop: Boolean = false,
 ) {
     val posterStorage = LocalContainer.current.posters
     val scope = rememberCoroutineScope()
@@ -119,24 +123,31 @@ fun PosterEditor(
     if (open) {
         ModalBottomSheet(onDismissRequest = onClose) {
             Text(
-                "Постер",
+                if (backdrop) "Фон картки" else "Постер",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
-            SheetItem(Icons.Default.PhotoLibrary, "З галереї телефону", "Оберіть фото та обріжте під постер") {
+            SheetItem(
+                Icons.Default.PhotoLibrary, "З галереї телефону",
+                if (backdrop) "Оберіть фото та обріжте під широкий кадр" else "Оберіть фото та обріжте під постер",
+            ) {
                 onClose()
                 picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
-            SheetItem(Icons.Default.Collections, "Інші постери TMDB", "Інші країни, перевидання, без тексту") {
+            SheetItem(
+                Icons.Default.Collections,
+                if (backdrop) "Інші кадри TMDB" else "Інші постери TMDB",
+                if (backdrop) "Кадри з фільму без тексту" else "Інші країни, перевидання, без тексту",
+            ) {
                 onClose()
-                vm.loadAltPosters()
+                if (backdrop) vm.loadAltBackdrops() else vm.loadAltPosters()
                 showTmdb = true
             }
             if (customPoster != null) {
                 SheetItem(Icons.Default.Restore, "Повернути оригінал", null) {
                     onClose()
-                    vm.resetPoster()
+                    if (backdrop) vm.resetBackdrop() else vm.resetPoster()
                 }
             }
             Spacer(Modifier.padding(bottom = 16.dp).navigationBarsPadding())
@@ -150,9 +161,10 @@ fun PosterEditor(
     cropBitmap?.let { bmp ->
         CropDialog(
             bitmap = bmp,
+            aspect = if (backdrop) 16f / 9f else 2f / 3f,
             onCancel = { cropBitmap = null },
             onDone = { rect ->
-                vm.saveGalleryPoster(bmp, rect)
+                if (backdrop) vm.saveGalleryBackdrop(bmp, rect) else vm.saveGalleryPoster(bmp, rect)
                 cropBitmap = null
             },
         )
@@ -163,8 +175,13 @@ fun PosterEditor(
             vm = vm,
             title = title,
             selected = customPoster?.removePrefix(PosterStorage.TMDB_PREFIX) ?: originalPoster,
+            backdrop = backdrop,
             onPick = { path ->
-                if (path == originalPoster) vm.resetPoster() else vm.useTmdbPoster(path)
+                if (backdrop) {
+                    if (path == originalPoster) vm.resetBackdrop() else vm.useTmdbBackdrop(path)
+                } else {
+                    if (path == originalPoster) vm.resetPoster() else vm.useTmdbPoster(path)
+                }
                 showTmdb = false
             },
             onClose = { showTmdb = false },
@@ -196,10 +213,11 @@ private fun TmdbPostersDialog(
     vm: DetailsViewModel,
     title: String,
     selected: String?,
+    backdrop: Boolean,
     onPick: (String) -> Unit,
     onClose: () -> Unit,
 ) {
-    val state by vm.altPosters.collectAsStateWithLifecycle()
+    val state by (if (backdrop) vm.altBackdrops else vm.altPosters).collectAsStateWithLifecycle()
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Scaffold(
             topBar = {
@@ -222,13 +240,16 @@ private fun TmdbPostersDialog(
                     Box(modifier, contentAlignment = Alignment.Center) { Text("Інших постерів немає") }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(120.dp),
+                        columns = GridCells.Adaptive(if (backdrop) 220.dp else 120.dp),
                         modifier = modifier,
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        items(s.data, key = { it.filePath }) { img -> AltPoster(img, title, img.filePath == selected) { onPick(img.filePath) } }
+                        items(s.data, key = { it.filePath }) { img ->
+                            if (backdrop) AltBackdrop(img, img.filePath == selected) { onPick(img.filePath) }
+                            else AltPoster(img, title, img.filePath == selected) { onPick(img.filePath) }
+                        }
                     }
                 }
             }
@@ -254,9 +275,26 @@ private fun AltPoster(img: ImageInfo, title: String, isSelected: Boolean, onClic
     }
 }
 
-/** Обрезка под постер 2:3: картинку можно двигать и увеличивать двумя пальцами. */
+/** Кадр-фон в списке TMDB. */
 @Composable
-private fun CropDialog(bitmap: Bitmap, onCancel: () -> Unit, onDone: (Rect) -> Unit) {
+private fun AltBackdrop(img: ImageInfo, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .then(if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)) else Modifier)
+            .clickable(onClick = onClick),
+    ) {
+        coil3.compose.AsyncImage(
+            com.kinoteka.app.data.tmdb.TmdbImages.backdrop(img.filePath, "w780"), null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+        )
+        if (isSelected) Text("✓ Обрано", color = Color.White, modifier = Modifier.align(Alignment.BottomStart).background(Color.Black.copy(alpha = 0.6f)).padding(6.dp))
+    }
+}
+
+/** Обрезка под заданную пропорцию (ширина/высота): постер 2:3 или фон 16:9. */
+@Composable
+private fun CropDialog(bitmap: Bitmap, aspect: Float = 2f / 3f, onCancel: () -> Unit, onDone: (Rect) -> Unit) {
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding().navigationBarsPadding()) {
@@ -275,8 +313,8 @@ private fun CropDialog(bitmap: Bitmap, onCancel: () -> Unit, onDone: (Rect) -> U
                 val bw = bitmap.width.toFloat()
                 val bh = bitmap.height.toFloat()
                 // Рамка 2:3 по центру.
-                val frameW = min(cw * 0.85f, ch * 0.9f * 2f / 3f)
-                val frameH = frameW * 1.5f
+                val frameW = min(cw * 0.9f, ch * 0.9f * aspect)
+                val frameH = frameW / aspect
                 val frameLeft = (cw - frameW) / 2f
                 val frameTop = (ch - frameH) / 2f
                 val minScale = max(frameW / bw, frameH / bh)

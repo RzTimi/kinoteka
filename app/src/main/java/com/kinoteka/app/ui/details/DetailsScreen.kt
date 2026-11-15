@@ -12,6 +12,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.FilterChipDefaults
@@ -143,6 +146,37 @@ class DetailsViewModel(
 
     fun saveGalleryPoster(bitmap: Bitmap, rect: Rect) {
         viewModelScope.launch { setPoster(posterStorage.saveCropped(bitmap, rect, key)) }
+    }
+
+    // ---------- Свой фон ----------
+
+    private val _altBackdrops = MutableStateFlow<UiState<List<ImageInfo>>>(UiState.Loading)
+    val altBackdrops = _altBackdrops.asStateFlow()
+    private var altBackdropsRequested = false
+
+    fun loadAltBackdrops(force: Boolean = false) {
+        if (altBackdropsRequested && !force) return
+        altBackdropsRequested = true
+        _altBackdrops.value = UiState.Loading
+        viewModelScope.launch {
+            _altBackdrops.value = runCatching { repo.backdrops(type, id) }
+                .fold({ UiState.Success(it) }, { UiState.Error(it.friendlyMessage()) })
+        }
+    }
+
+    private fun setBackdrop(ref: String?) {
+        val old = library.entries.value[key]?.customBackdrop
+        edit { it.copy(customBackdrop = ref) }
+        if (old != ref) posterStorage.deleteIfLocal(old)
+    }
+
+    fun useTmdbBackdrop(path: String) = setBackdrop(PosterStorage.TMDB_PREFIX + path)
+    fun resetBackdrop() = setBackdrop(null)
+
+    fun saveGalleryBackdrop(bitmap: Bitmap, rect: Rect) {
+        viewModelScope.launch {
+            setBackdrop(posterStorage.saveCropped(bitmap, rect, key, maxWidth = 1280, aspect = 16f / 9f, prefix = "bg_"))
+        }
     }
 
     private val _state = MutableStateFlow<UiState<TmdbDetails>>(UiState.Loading)
@@ -312,10 +346,16 @@ private fun DetailsContent(
     val uri = LocalUriHandler.current
     val imdb by vm.imdb.collectAsStateWithLifecycle()
     val imdbId = d.externalIds?.imdbId?.takeIf { it.isNotBlank() }
-    val title = d.displayTitle(type)
-    val original = (d.originalTitle ?: d.originalName)?.takeIf { it != title }
+    val tmdbTitle = d.displayTitle(type)
+    val title = entry?.customTitle?.takeIf { it.isNotBlank() } ?: tmdbTitle
+    // Под своим названием показываем название TMDB, иначе — оригинальное.
+    val original = if (title != tmdbTitle) tmdbTitle else (d.originalTitle ?: d.originalName)?.takeIf { it != title }
     val section = Section.classify(type, d.genres.map { it.id }, d.originalLanguage)
     var posterMenu by remember { mutableStateOf(false) }
+    var backdropMenu by remember { mutableStateOf(false) }
+    var titleDialog by remember { mutableStateOf(false) }
+    var shareDialog by remember { mutableStateOf(false) }
+    val filesDir = LocalContext.current.filesDir
 
     PosterEditor(
         open = posterMenu,
@@ -325,6 +365,34 @@ private fun DetailsContent(
         originalPoster = d.posterPath,
         customPoster = entry?.customPoster,
     )
+    PosterEditor(
+        open = backdropMenu,
+        onClose = { backdropMenu = false },
+        vm = vm,
+        title = title,
+        originalPoster = d.backdropPath,
+        customPoster = entry?.customBackdrop,
+        backdrop = true,
+    )
+    if (titleDialog) {
+        CustomTitleDialog(
+            current = entry?.customTitle ?: tmdbTitle,
+            hasCustom = entry?.customTitle != null,
+            onSave = { vm.setCustomTitle(it); titleDialog = false },
+            onReset = { vm.setCustomTitle(null); titleDialog = false },
+            onDismiss = { titleDialog = false },
+        )
+    }
+    if (shareDialog) {
+        ShareCardDialog(
+            title = title,
+            year = d.year(),
+            posterModel = PosterStorage.model(filesDir, entry?.customPoster, d.posterPath, "w500"),
+            rating = entry?.rating,
+            note = entry?.note,
+            onDismiss = { shareDialog = false },
+        )
+    }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         // Шапка: фон + постер + название
@@ -334,11 +402,23 @@ private fun DetailsContent(
                 val backdropHeight = minOf(maxWidth * 10f / 16f, 300.dp)
                 Box(Modifier.fillMaxWidth().height(backdropHeight)) {
                     AsyncImage(
-                        model = TmdbImages.backdrop(d.backdropPath ?: d.posterPath),
+                        model = PosterStorage.model(filesDir, entry?.customBackdrop, d.backdropPath ?: d.posterPath, "w1280"),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
+                    // Кнопки на фоне: поделиться и сменить фон.
+                    Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp)) {
+                        IconButton(
+                            onClick = { shareDialog = true },
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = Color.White),
+                        ) { Icon(Icons.Default.Share, "Поділитися") }
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(
+                            onClick = { backdropMenu = true },
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = Color.White),
+                        ) { Icon(Icons.Default.Wallpaper, "Змінити фон") }
+                    }
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.verticalGradient(
@@ -366,7 +446,15 @@ private fun DetailsContent(
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f).offset(y = (-4).dp)) {
-                        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        // Нажатие на название — задать своё.
+                        Row(
+                            Modifier.clip(RoundedCornerShape(6.dp)).clickable { titleDialog = true },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f, fill = false))
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.Edit, "Змінити назву", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         if (original != null) {
                             Text(original, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -565,6 +653,12 @@ private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewM
                     colors = FilterChipDefaults.filterChipColors(selectedContainerColor = FavoriteRed.copy(alpha = 0.15f)),
                 )
             }
+            Spacer(Modifier.height(8.dp))
+            CollectionsRow(
+                current = entry?.collections.orEmpty(),
+                onToggle = vm::toggleCollection,
+                onCreate = vm::createCollectionAndAdd,
+            )
             val note = entry?.note?.takeIf { it.isNotBlank() }
             if (note == null) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -664,6 +758,30 @@ private fun ProviderRow(label: String, providers: List<Provider>, onClick: () ->
             }
         }
     }
+}
+
+/** Диалог «Своя назва». */
+@Composable
+private fun CustomTitleDialog(current: String, hasCustom: Boolean, onSave: (String) -> Unit, onReset: () -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Своя назва") },
+        text = {
+            Column {
+                Text("Наприклад, оригінальна назва або як ви його називаєте.", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(text, { text = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(text) }, enabled = text.isNotBlank()) { Text("Зберегти") } },
+        dismissButton = {
+            Row {
+                if (hasCustom) TextButton(onClick = onReset) { Text("Скинути") }
+                TextButton(onClick = onDismiss) { Text("Скасувати") }
+            }
+        },
+    )
 }
 
 /** Прогресс сериала: сколько серий просмотрено и кнопка «следующая серия». */

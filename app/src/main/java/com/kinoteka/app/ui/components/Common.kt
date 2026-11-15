@@ -190,7 +190,7 @@ fun MediaCardItem(card: MediaCard, onClick: (MediaCard) -> Unit, modifier: Modif
     val my = LocalLibrary.current[card.key]
     val subtitle = listOfNotNull(card.year, if (showType) card.section.title else null).joinToString(" · ")
     PosterCard(
-        title = card.title,
+        title = my?.customTitle?.takeIf { it.isNotBlank() } ?: card.title,
         posterPath = card.posterPath,
         subtitle = subtitle,
         tmdbRating = card.rating,

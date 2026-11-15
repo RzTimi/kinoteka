@@ -160,7 +160,10 @@ data class Video(
 )
 
 @Serializable
-data class ImagesResponse(val posters: List<ImageInfo> = emptyList())
+data class ImagesResponse(
+    val posters: List<ImageInfo> = emptyList(),
+    val backdrops: List<ImageInfo> = emptyList(),
+)
 
 @Serializable
 data class ImageInfo(

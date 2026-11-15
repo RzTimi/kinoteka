@@ -238,6 +238,13 @@ class MediaRepository(
                     .thenByDescending { it.voteAverage }
             )
 
+    /** Альтернативные фоны (кадры): сначала без текста, потом остальные. */
+    suspend fun backdrops(type: MediaType, id: Int): List<ImageInfo> =
+        api.images(type.path, id, languages = "null,uk,en").backdrops
+            .filter { it.filePath.isNotBlank() }
+            .sortedWith(compareBy<ImageInfo>({ if (it.language == null) 0 else 1 }).thenByDescending { it.voteAverage })
+            .take(60)
+
     suspend fun details(type: MediaType, id: Int): TmdbDetails {
         val uk = api.details(type.path, id)
         val ukTitle = (if (type == MediaType.MOVIE) uk.title ?: uk.name else uk.name ?: uk.title).orEmpty()

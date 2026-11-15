@@ -40,8 +40,18 @@ class PosterStorage(context: Context) {
         }.getOrNull()
     }
 
-    /** Вырезать область 2:3, уменьшить до 600x900 и сохранить. Возвращает ссылку "file:имя.jpg". */
-    suspend fun saveCropped(src: Bitmap, rect: Rect, key: String): String = withContext(Dispatchers.IO) {
+    /**
+     * Вырезать область, уменьшить до [maxWidth] по ширине и сохранить.
+     * Постер 2:3 → 600x900, фон 16:9 → 1280x720. Возвращает ссылку "file:имя.jpg".
+     */
+    suspend fun saveCropped(
+        src: Bitmap,
+        rect: Rect,
+        key: String,
+        maxWidth: Int = 600,
+        aspect: Float = 2f / 3f,
+        prefix: String = "",
+    ): String = withContext(Dispatchers.IO) {
         val safe = Rect(
             rect.left.coerceIn(0, src.width - 1),
             rect.top.coerceIn(0, src.height - 1),
@@ -49,13 +59,13 @@ class PosterStorage(context: Context) {
             rect.bottom.coerceIn(1, src.height),
         )
         val cropped = Bitmap.createBitmap(src, safe.left, safe.top, safe.width(), safe.height())
-        val targetW = minOf(600, cropped.width)
-        val targetH = targetW * 3 / 2
+        val targetW = minOf(maxWidth, cropped.width)
+        val targetH = (targetW / aspect).toInt()
         val scaled = if (cropped.width != targetW || cropped.height != targetH) {
             Bitmap.createScaledBitmap(cropped, targetW, targetH, true)
         } else cropped
         // Время в имени файла: чтобы кэш картинок не показывал старую версию.
-        val name = "${key.replace(':', '_')}_${System.currentTimeMillis()}.jpg"
+        val name = "$prefix${key.replace(':', '_')}_${System.currentTimeMillis()}.jpg"
         FileOutputStream(File(dir, name)).use { scaled.compress(Bitmap.CompressFormat.JPEG, 90, it) }
         "$FILE_PREFIX$name"
     }
