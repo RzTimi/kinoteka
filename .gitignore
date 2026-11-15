@@ -2,6 +2,10 @@
 .gradle/
 .kotlin/
 /local.properties
+/keystore.properties
+*.jks
+*.keystore
+/release/
 /.idea/
 .DS_Store
 /build

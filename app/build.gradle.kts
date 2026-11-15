@@ -12,6 +12,12 @@ val localProps = Properties().apply {
 }
 val tmdbKey: String = (localProps.getProperty("TMDB_API_KEY") ?: "").trim()
 
+// Ключ подписи релиза: keystore.properties в корне проекта (не попадает в git).
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
     namespace = "com.kinoteka.app"
     compileSdk = 37
@@ -25,8 +31,20 @@ android {
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbKey\"")
     }
 
+    signingConfigs {
+        if (!keystoreProps.isEmpty) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (!keystoreProps.isEmpty) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
