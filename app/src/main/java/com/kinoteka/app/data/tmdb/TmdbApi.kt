@@ -39,6 +39,14 @@ interface TmdbApi {
         @Query("language") language: String? = null,
     ): TmdbDetails
 
+    /** Сезон сериала со списком серий. */
+    @GET("tv/{id}/season/{season}")
+    suspend fun season(
+        @Path("id") id: Int,
+        @Path("season") season: Int,
+        @Query("language") language: String? = null,
+    ): SeasonDetails
+
     /** Актёр/режиссёр: биография и все фильмы и сериалы. */
     @GET("person/{id}")
     suspend fun person(
@@ -103,4 +111,5 @@ object TmdbImages {
     fun backdrop(path: String?, size: String = "w1280") = path?.let { BASE + size + it }
     fun profile(path: String?, size: String = "w185") = path?.let { BASE + size + it }
     fun logo(path: String?) = path?.let { BASE + "w92" + it }
+    fun still(path: String?) = path?.let { BASE + "w300" + it }
 }

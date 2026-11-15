@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.FilterChipDefaults
@@ -173,7 +177,68 @@ class DetailsViewModel(
                 year = d.year(),
                 section = Section.classify(type, d.genres.map { it.id }, d.originalLanguage).name,
             )
-        }) { change(it.copy(title = d.displayTitle(type), posterPath = d.posterPath, year = d.year())) }
+        }) { old ->
+            val runtime = d.runtime?.takeIf { it > 0 } ?: d.episodeRunTime.firstOrNull()
+            val changed = change(
+                old.copy(
+                    title = d.displayTitle(type),
+                    posterPath = d.posterPath,
+                    year = d.year(),
+                    genres = d.genres.map { g -> g.name.replaceFirstChar { c -> c.uppercase() } },
+                    runtime = runtime ?: old.runtime,
+                )
+            )
+            // Дата просмотра — для статистики по месяцам.
+            val nowWatched = changed.status == WatchStatus.WATCHED || changed.rating != null
+            changed.copy(watchedAt = if (nowWatched) changed.watchedAt ?: System.currentTimeMillis() else changed.watchedAt)
+        }
+    }
+
+    // ---------- Подборки ----------
+
+    fun toggleCollection(name: String) = edit { e ->
+        e.copy(collections = if (name in e.collections) e.collections - name else e.collections + name)
+    }
+
+    fun createCollectionAndAdd(name: String) {
+        library.createCollection(name)
+        edit { e -> if (name.trim() in e.collections) e else e.copy(collections = e.collections + name.trim()) }
+    }
+
+    // ---------- Своё название ----------
+
+    fun setCustomTitle(title: String?) = edit { e -> e.copy(customTitle = title?.trim()?.takeIf { it.isNotEmpty() }) }
+
+    // ---------- Трекер серий ----------
+
+    /** Отметить/снять серию. Статус «Дивлюсь»/«Переглянуто» ставится сам. */
+    fun toggleEpisode(season: Int, episode: Int) = edit { e ->
+        val key = season.toString()
+        val current = e.episodes[key].orEmpty()
+        val updated = if (episode in current) current - episode else (current + episode).sorted()
+        withEpisodeStatus(e.copy(episodes = (e.episodes + (key to updated)).filterValues { it.isNotEmpty() }))
+    }
+
+    /** Отметить весь сезон (или снять, если он уже весь отмечен). */
+    fun toggleSeason(season: Int, episodeCount: Int) = edit { e ->
+        val key = season.toString()
+        val all = (1..episodeCount).toList()
+        val full = e.episodes[key].orEmpty().containsAll(all)
+        val updated = if (full) e.episodes - key else e.episodes + (key to all)
+        withEpisodeStatus(e.copy(episodes = updated))
+    }
+
+    private fun withEpisodeStatus(e: LibraryEntry): LibraryEntry {
+        val d = (state.value as? UiState.Success)?.data ?: return e
+        val total = d.seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount }
+        val watched = e.watchedEpisodeCount
+        val status = when {
+            watched == 0 -> e.status.takeIf { it != WatchStatus.WATCHING }
+            total > 0 && watched >= total && d.status in setOf("Ended", "Canceled") -> WatchStatus.WATCHED
+            e.status == null || e.status == WatchStatus.WANT || e.status == WatchStatus.WATCHED -> WatchStatus.WATCHING
+            else -> e.status
+        }
+        return e.copy(status = status)
     }
 
     /** Повторное нажатие на ту же звезду снимает оценку. */
@@ -203,6 +268,7 @@ fun DetailsScreen(
     onBack: () -> Unit,
     onOpen: (MediaCard) -> Unit,
     onPerson: (Int) -> Unit,
+    onSeason: (Int) -> Unit = {},
 ) {
     val container = LocalContainer.current
     val type = MediaType.fromPath(route.type) ?: MediaType.MOVIE
@@ -216,7 +282,7 @@ fun DetailsScreen(
         when (val s = state) {
             UiState.Loading -> LoadingBox()
             is UiState.Error -> ErrorBox(s.message, vm::load)
-            is UiState.Success -> DetailsContent(s.data, type, entry, vm, onOpen, onPerson)
+            is UiState.Success -> DetailsContent(s.data, type, entry, vm, onOpen, onPerson, onSeason)
         }
         BackButton(onBack)
     }
@@ -241,6 +307,7 @@ private fun DetailsContent(
     vm: DetailsViewModel,
     onOpen: (MediaCard) -> Unit,
     onPerson: (Int) -> Unit,
+    onSeason: (Int) -> Unit,
 ) {
     val uri = LocalUriHandler.current
     val imdb by vm.imdb.collectAsStateWithLifecycle()
@@ -374,15 +441,17 @@ private fun DetailsContent(
         if (type == MediaType.TV) {
             val seasons = d.seasons.filter { it.seasonNumber > 0 }
             if (seasons.isNotEmpty()) {
-                item { SectionTitle("Сезони") }
+                item { SectionTitle("Сезони і серії") }
+                item { EpisodeProgress(d, entry, vm) }
                 items(seasons, key = { "s${it.seasonNumber}" }) { s ->
+                    val done = entry?.episodes?.get(s.seasonNumber.toString())?.size ?: 0
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        Modifier.fillMaxWidth().clickable { onSeason(s.seasonNumber) }.padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         PosterImage(s.posterPath ?: d.posterPath, s.name ?: "", Modifier.width(48.dp), size = "w154")
                         Spacer(Modifier.width(12.dp))
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(s.name ?: "Сезон ${s.seasonNumber}", fontWeight = FontWeight.Medium)
                             Text(
                                 listOfNotNull(s.airDate?.take(4), "${s.episodeCount} серій").joinToString(" · "),
@@ -390,6 +459,12 @@ private fun DetailsContent(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                        when {
+                            s.episodeCount > 0 && done >= s.episodeCount ->
+                                Icon(Icons.Default.CheckCircle, "Сезон переглянуто", tint = MaterialTheme.colorScheme.primary)
+                            done > 0 -> Text("$done/${s.episodeCount}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -586,6 +661,49 @@ private fun ProviderRow(label: String, providers: List<Provider>, onClick: () ->
                     )
                     Text(p.name, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center)
                 }
+            }
+        }
+    }
+}
+
+/** Прогресс сериала: сколько серий просмотрено и кнопка «следующая серия». */
+@Composable
+private fun EpisodeProgress(d: TmdbDetails, entry: LibraryEntry?, vm: DetailsViewModel) {
+    val seasons = d.seasons.filter { it.seasonNumber > 0 && it.episodeCount > 0 }
+    val total = seasons.sumOf { it.episodeCount }
+    val watched = entry?.watchedEpisodeCount ?: 0
+    // Следующая непросмотренная серия, но не дальше последней вышедшей.
+    val last = d.lastEpisode
+    val next = seasons.asSequence().flatMap { s ->
+        (1..s.episodeCount).asSequence().map { e -> s.seasonNumber to e }
+    }.firstOrNull { (s, e) -> e !in entry?.episodes?.get(s.toString()).orEmpty() }
+        ?.takeIf { (s, e) -> last == null || s < last.seasonNumber || (s == last.seasonNumber && e <= last.episodeNumber) }
+
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Переглянуто $watched з $total серій", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                if (total > 0) Text("${watched * 100 / total}%", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { if (total == 0) 0f else watched.toFloat() / total },
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+            )
+            if (next != null) {
+                Spacer(Modifier.height(12.dp))
+                FilledTonalButton(onClick = { vm.toggleEpisode(next.first, next.second) }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Check, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Переглянув S${next.first}E${next.second}")
+                }
+            } else if (watched > 0 && d.nextEpisode != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Наступна серія S${d.nextEpisode.seasonNumber}E${d.nextEpisode.episodeNumber} вийде ${d.nextEpisode.airDate.orEmpty()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

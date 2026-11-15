@@ -47,13 +47,34 @@ data class LibraryEntry(
     val customPoster: String? = null,
     /** Метка «Улюблене» ❤ — независимо от статуса. */
     val favorite: Boolean = false,
+    /** Своё название (вместо названия TMDB). */
+    val customTitle: String? = null,
+    /** Свой фон карточки: "tmdb:/путь.jpg" или "file:имя.jpg". */
+    val customBackdrop: String? = null,
+    /** Жанры (названия) — для фильтров и статистики. */
+    val genres: List<String> = emptyList(),
+    /** Длительность: фильм — минуты, сериал — минут на серию. */
+    val runtime: Int? = null,
+    /** Трекер серий: номер сезона → просмотренные серии. */
+    val episodes: Map<String, List<Int>> = emptyMap(),
+    /** Свои подборки, в которые входит фильм. */
+    val collections: List<String> = emptyList(),
+    /** Фильм добавлен вручную (нет в TMDB). */
+    val manual: Boolean = false,
+    /** Описание для фильмов, добавленных вручную. */
+    val overview: String? = null,
+    /** Когда отмечен просмотренным (для статистики по месяцам). */
+    val watchedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
     val type: MediaType get() = MediaType.fromPath(mediaType) ?: MediaType.MOVIE
     val sectionEnum: Section get() = Section.fromName(section) ?: Section.MOVIES
     val key: String get() = mediaKey(type, tmdbId)
+    val displayTitle: String get() = customTitle?.takeIf { it.isNotBlank() } ?: title
+    val watchedEpisodeCount: Int get() = episodes.values.sumOf { it.size }
     val isEmpty: Boolean
-        get() = rating == null && status == null && note.isBlank() && customPoster == null && !favorite
+        get() = rating == null && status == null && note.isBlank() && customPoster == null && !favorite &&
+            customTitle == null && customBackdrop == null && episodes.isEmpty() && collections.isEmpty() && !manual
 }
 
 @Serializable
@@ -61,6 +82,8 @@ data class LibraryFile(
     val version: Int = 1,
     val entries: List<LibraryEntry> = emptyList(),
     val deleted: Map<String, Long> = emptyMap(),
+    /** Свои подборки: название → когда создана (включая пустые). */
+    val collections: Map<String, Long> = emptyMap(),
 )
 
 /**
@@ -81,6 +104,10 @@ class LibraryStore(context: Context) {
     private val _loaded = MutableStateFlow(false)
     val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
 
+    /** Свои подборки: название → время создания. */
+    private val _collections = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val collections: StateFlow<Map<String, Long>> = _collections.asStateFlow()
+
     /** Растёт при каждом изменении, сделанном на этом телефоне (не синхронизацией). */
     private val _localVersion = MutableStateFlow(0L)
     val localVersion: StateFlow<Long> = _localVersion.asStateFlow()
@@ -92,6 +119,7 @@ class LibraryStore(context: Context) {
             }.getOrElse { LibraryFile() }
             _entries.update { current -> loaded.entries.associateBy { it.key } + current }
             deleted.update { loaded.deleted + it }
+            _collections.update { loaded.collections + it }
             _loaded.value = true
         }
     }
@@ -115,10 +143,40 @@ class LibraryStore(context: Context) {
         localChanged()
     }
 
+    /** Создать подборку. */
+    fun createCollection(name: String) {
+        val n = name.trim()
+        if (n.isEmpty() || n in _collections.value) return
+        _collections.update { it + (n to System.currentTimeMillis()) }
+        deleted.update { it - collectionKey(n) }
+        localChanged()
+    }
+
+    /** Удалить подборку (фильмы остаются, просто убираются из неё). */
+    fun deleteCollection(name: String) {
+        val now = System.currentTimeMillis()
+        _collections.update { it - name }
+        deleted.update { it + (collectionKey(name) to now) }
+        _entries.update { map ->
+            map.mapValues { (_, e) ->
+                if (name in e.collections) e.copy(collections = e.collections - name, updatedAt = now) else e
+            }.filterValues { !it.isEmpty }
+        }
+        localChanged()
+    }
+
+    /** Добавить много записей сразу (импорт). Существующие не перезаписываются. */
+    fun addAll(newEntries: List<LibraryEntry>) {
+        _entries.update { map -> map + newEntries.filter { it.key !in map }.associateBy { it.key } }
+        deleted.update { it - newEntries.map { e -> e.key }.toSet() }
+        localChanged()
+    }
+
     /** Всё содержимое для синхронизации. */
     fun snapshot(): LibraryFile = LibraryFile(
         entries = _entries.value.values.sortedByDescending { it.updatedAt },
         deleted = deleted.value,
+        collections = _collections.value,
     )
 
     /** Заменить содержимое результатом синхронизации (без повторного запуска синхронизации). */
@@ -127,6 +185,7 @@ class LibraryStore(context: Context) {
         val final = merge(file, snapshot())
         _entries.value = final.entries.associateBy { it.key }
         deleted.value = final.deleted
+        _collections.value = final.collections
         persist()
     }
 
@@ -163,8 +222,16 @@ class LibraryStore(context: Context) {
             val newest = (a.entries + b.entries).groupBy { it.key }.mapValues { (_, list) -> list.maxBy { it.updatedAt } }
             val alive = newest.values.filter { e -> (deleted[e.key] ?: 0L) < e.updatedAt }
             val aliveKeys = alive.mapTo(HashSet()) { it.key }
-            val tombstones = deleted.filter { (k, t) -> k !in aliveKeys && now - t < TOMBSTONE_TTL_MS }
-            return LibraryFile(entries = alive.sortedByDescending { it.updatedAt }, deleted = tombstones)
+            // Подборки: живы, если созданы позже, чем удалены.
+            val allCollections = (a.collections.keys + b.collections.keys).associateWith { n ->
+                maxOf(a.collections[n] ?: 0L, b.collections[n] ?: 0L)
+            }
+            val collections = allCollections.filter { (n, created) -> created > (deleted[collectionKey(n)] ?: 0L) }
+            val liveKeys = aliveKeys + collections.keys.map(::collectionKey)
+            val tombstones = deleted.filter { (k, t) -> k !in liveKeys && now - t < TOMBSTONE_TTL_MS }
+            return LibraryFile(entries = alive.sortedByDescending { it.updatedAt }, deleted = tombstones, collections = collections)
         }
+
+        private fun collectionKey(name: String) = "collection:$name"
     }
 }

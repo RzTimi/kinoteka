@@ -73,6 +73,34 @@ data class TmdbDetails(
     val recommendations: PagedResponse<TmdbItem>? = null,
     val similar: PagedResponse<TmdbItem>? = null,
     @SerialName("external_ids") val externalIds: ExternalIds? = null,
+    @SerialName("next_episode_to_air") val nextEpisode: EpisodeBrief? = null,
+    @SerialName("last_episode_to_air") val lastEpisode: EpisodeBrief? = null,
+)
+
+@Serializable
+data class EpisodeBrief(
+    val name: String? = null,
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("season_number") val seasonNumber: Int = 0,
+    @SerialName("episode_number") val episodeNumber: Int = 0,
+)
+
+@Serializable
+data class SeasonDetails(
+    val name: String? = null,
+    @SerialName("season_number") val seasonNumber: Int = 0,
+    val episodes: List<Episode> = emptyList(),
+)
+
+@Serializable
+data class Episode(
+    @SerialName("episode_number") val number: Int = 0,
+    val name: String? = null,
+    val overview: String? = null,
+    @SerialName("air_date") val airDate: String? = null,
+    val runtime: Int? = null,
+    @SerialName("still_path") val stillPath: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0,
 )
 
 @Serializable

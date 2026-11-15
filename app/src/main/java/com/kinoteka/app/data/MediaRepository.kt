@@ -70,6 +70,21 @@ class MediaRepository(
         }
     }
 
+    /** Сезон: серии. Если у серий нет описаний на украинском — подставляем английские. */
+    suspend fun season(tvId: Int, season: Int): com.kinoteka.app.data.tmdb.SeasonDetails {
+        val uk = api.season(tvId, season)
+        if (uk.episodes.none { it.overview.isNullOrBlank() }) return uk
+        val en = runCatching { api.season(tvId, season, language = "en-US") }.getOrNull() ?: return uk
+        val enByNumber = en.episodes.associateBy { it.number }
+        return uk.copy(episodes = uk.episodes.map { ep ->
+            val e = enByNumber[ep.number]
+            ep.copy(
+                overview = ep.overview?.takeIf { it.isNotBlank() } ?: e?.overview,
+                name = ep.name?.takeIf { it.isNotBlank() && !it.matches(Regex("(Епізод|Серія|Episode) \\d+")) } ?: e?.name ?: ep.name,
+            )
+        })
+    }
+
     /** Актёр: биография (если нет на украинском — английская), известные работы и фильмография. */
     suspend fun person(id: Int): PersonPage {
         var person = api.person(id)

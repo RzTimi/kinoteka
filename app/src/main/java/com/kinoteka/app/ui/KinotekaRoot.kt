@@ -47,6 +47,12 @@ import com.kinoteka.app.data.Section
 import com.kinoteka.app.ui.about.AboutScreen
 import com.kinoteka.app.ui.settings.SettingsScreen
 import com.kinoteka.app.ui.person.PersonScreen
+import com.kinoteka.app.ui.details.DetailsViewModel
+import com.kinoteka.app.ui.details.SeasonScreen
+import com.kinoteka.app.ui.details.displayTitle
+import com.kinoteka.app.ui.components.UiState
+import com.kinoteka.app.data.MediaType
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kinoteka.app.ui.roulette.RouletteScreen
 import com.kinoteka.app.ui.account.AccountScreen
 import com.kinoteka.app.ui.account.WelcomeSyncDialog
@@ -233,7 +239,19 @@ private fun AppScaffold() {
                     onBack = { nav.popBackStack() },
                     onOpen = openDetails,
                     onPerson = { nav.navigate(PersonRoute(it)) },
+                    onSeason = { season -> nav.navigate(SeasonRoute(route.id, season, "")) },
                 )
+            }
+            composable<SeasonRoute> { entry ->
+                val route = entry.toRoute<SeasonRoute>()
+                val container = LocalContainer.current
+                // Берём ViewModel карточки сериала (предыдущий экран), чтобы отметки сразу меняли статус.
+                val parent = remember(entry) { nav.previousBackStackEntry ?: entry }
+                val detailsVm: DetailsViewModel = viewModel(parent) {
+                    DetailsViewModel(container.repository, container.library, container.posters, MediaType.TV, route.tvId)
+                }
+                val title = (detailsVm.state.collectAsStateWithLifecycle().value as? UiState.Success)?.data?.displayTitle(MediaType.TV).orEmpty()
+                SeasonScreen(route.tvId, route.season, title, detailsVm, onBack = { nav.popBackStack() })
             }
         }
     }
