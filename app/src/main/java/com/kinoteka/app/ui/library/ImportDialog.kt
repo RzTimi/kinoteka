@@ -38,7 +38,7 @@ import java.time.ZoneId
 import kotlin.math.roundToInt
 
 /** Строка из CSV: название, год, оценка 1–10 (или null), дата просмотра. */
-data class ImportRow(val title: String, val year: Int?, val rating: Int?, val watchedAt: Long?)
+data class ImportRow(val title: String, val year: Int?, val rating: Double?, val watchedAt: Long?)
 
 /**
  * Разбор CSV: Letterboxd (ratings.csv / watched.csv / diary.csv) или любой CSV
@@ -60,7 +60,7 @@ fun parseImportCsv(text: String): List<ImportRow> {
     val fiveScale = letterboxd || (rawRatings.isNotEmpty() && rawRatings.max() <= 5.0)
     return rows.map { r ->
         val rating = r.getOrNull(ratingCol)?.replace(',', '.')?.toDoubleOrNull()?.let { v ->
-            (if (fiveScale) v * 2 else v).roundToInt().coerceIn(1, 10)
+            (Math.round((if (fiveScale) v * 2 else v) * 10) / 10.0).coerceIn(1.0, 10.0)
         }
         val date = r.getOrNull(dateCol)?.trim()?.take(10)?.let { d ->
             runCatching { LocalDate.parse(d).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }.getOrNull()
@@ -134,10 +134,9 @@ fun ImportDialog(onDismiss: () -> Unit) {
                         posterPath = found.posterPath,
                         year = (found.releaseDate ?: "").take(4).ifBlank { row.year?.toString() },
                         section = Section.classify(found, MediaType.MOVIE).name,
-                        rating = row.rating,
                         status = WatchStatus.WATCHED,
                         watchedAt = row.watchedAt ?: System.currentTimeMillis(),
-                    )
+                    ).withScore(row.rating)
                     if (entry.key !in existing && added.none { it.key == entry.key }) added += entry
                 }
                 done++

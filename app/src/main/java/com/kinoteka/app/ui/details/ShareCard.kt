@@ -51,6 +51,7 @@ import coil3.request.allowHardware
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.kinoteka.app.data.library.formatScore
 import java.io.File
 import java.io.FileOutputStream
 
@@ -63,7 +64,7 @@ fun ShareCardDialog(
     title: String,
     year: String?,
     posterModel: String?,
-    rating: Int?,
+    rating: Double?,
     note: String?,
     onDismiss: () -> Unit,
 ) {
@@ -112,8 +113,8 @@ fun ShareCardDialog(
                     year?.let { Text(it, color = Color(0xFFB7CBB1), style = MaterialTheme.typography.bodyMedium) }
                     Spacer(Modifier.height(10.dp))
                     if (rating != null) {
-                        Text("Моя оцінка: $rating / 10", color = Color(0xFFA5D86E), fontWeight = FontWeight.SemiBold)
-                        SnakeRating(rating = rating, onRate = {}, onClear = {})
+                        Text("Моя оцінка: ${formatScore(rating)} / 10", color = Color(0xFFA5D86E), fontWeight = FontWeight.SemiBold)
+                        SnakeRating(rating = rating, onRate = {}, onClear = {}, interactive = false)
                     } else {
                         Text("Ще не оцінено", color = Color(0xFFB7CBB1))
                     }

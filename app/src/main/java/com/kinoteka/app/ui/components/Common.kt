@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.kinoteka.app.data.library.formatScore
 import coil3.compose.AsyncImage
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
@@ -134,7 +135,7 @@ fun PosterCard(
     posterPath: String?,
     subtitle: String?,
     tmdbRating: Double?,
-    myRating: Int?,
+    myRating: Double?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     customPoster: String? = null,
@@ -153,7 +154,7 @@ fun PosterCard(
             if (myRating != null) {
                 // Моя оценка — змейка 🐍 (у рейтинга TMDB остаётся звёздочка).
                 Badge(
-                    text = "$myRating",
+                    text = formatScore(myRating),
                     modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
                     background = Color(0xFF2E7D32),
                     content = Color.White,
@@ -194,7 +195,7 @@ fun MediaCardItem(card: MediaCard, onClick: (MediaCard) -> Unit, modifier: Modif
         posterPath = card.posterPath,
         subtitle = subtitle,
         tmdbRating = card.rating,
-        myRating = my?.rating,
+        myRating = my?.score,
         onClick = { onClick(card) },
         modifier = modifier,
         customPoster = my?.customPoster,

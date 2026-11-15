@@ -36,8 +36,10 @@ data class LibraryEntry(
     val posterPath: String? = null,
     val year: String? = null,
     val section: String,
-    /** Ваша оценка 1..10 или null. */
+    /** Ваша оценка 1..10 (целая, округлённая) — для совместимости со старыми версиями. */
     val rating: Int? = null,
+    /** Точная оценка с десятыми (например 5.2). Если null — берём [rating]. */
+    val ratingExact: Double? = null,
     val status: WatchStatus? = null,
     val note: String = "",
     /**
@@ -71,11 +73,23 @@ data class LibraryEntry(
     val sectionEnum: Section get() = Section.fromName(section) ?: Section.MOVIES
     val key: String get() = mediaKey(type, tmdbId)
     val displayTitle: String get() = customTitle?.takeIf { it.isNotBlank() } ?: title
+    /** Оценка для показа: точная, если есть, иначе целая. */
+    val score: Double? get() = ratingExact ?: rating?.toDouble()
+
+    /** Поставить оценку (с десятыми) — целое поле заполняется округлённым значением. */
+    fun withScore(value: Double?): LibraryEntry {
+        val v = value?.let { (Math.round(it * 10) / 10.0).coerceIn(1.0, 10.0) }
+        return copy(ratingExact = v, rating = v?.let { Math.round(it).toInt().coerceIn(1, 10) })
+    }
     val watchedEpisodeCount: Int get() = episodes.values.sumOf { it.size }
     val isEmpty: Boolean
         get() = rating == null && status == null && note.isBlank() && customPoster == null && !favorite &&
             customTitle == null && customBackdrop == null && episodes.isEmpty() && collections.isEmpty() && !manual
 }
+
+/** «5» для целых, «5.2» для дробных. */
+fun formatScore(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else String.format(java.util.Locale.US, "%.1f", value)
 
 @Serializable
 data class LibraryFile(

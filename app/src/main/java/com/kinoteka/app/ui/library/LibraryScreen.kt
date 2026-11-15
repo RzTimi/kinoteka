@@ -78,7 +78,7 @@ private enum class LibraryFilter(val label: String) {
     fun matches(e: LibraryEntry) = when (this) {
         ALL -> true
         FAVORITE -> e.favorite
-        RATED -> e.rating != null
+        RATED -> e.score != null
         WANT -> e.status == WatchStatus.WANT
         WATCHING -> e.status == WatchStatus.WATCHING
         REWATCHING -> e.status == WatchStatus.REWATCHING
@@ -93,7 +93,7 @@ private enum class LibrarySort(val label: String) {
 
     fun sort(list: List<LibraryEntry>): List<LibraryEntry> = when (this) {
         RECENT -> list.sortedByDescending { it.updatedAt }
-        RATING -> list.sortedWith(compareByDescending<LibraryEntry> { it.rating ?: -1 }.thenByDescending { it.updatedAt })
+        RATING -> list.sortedWith(compareByDescending<LibraryEntry> { it.score ?: -1.0 }.thenByDescending { it.updatedAt })
         TITLE -> list.sortedBy { it.displayTitle.lowercase() }
         YEAR -> list.sortedByDescending { it.year ?: "" }
     }
@@ -135,7 +135,7 @@ fun LibraryScreen(
                     it.title.contains(query.trim(), ignoreCase = true) || it.note.contains(query.trim(), ignoreCase = true)
             }
     )
-    val rated = bySection.mapNotNull { it.rating }
+    val rated = bySection.mapNotNull { it.score }
     val stats = buildString {
         append("Усього: ${bySection.size}")
         if (rated.isNotEmpty()) append(" · Оцінено: ${rated.size} · Середня: ${String.format(Locale.US, "%.1f", rated.average())}")
@@ -265,7 +265,7 @@ fun LibraryScreen(
                             e.watchedEpisodeCount.takeIf { it > 0 && e.type == com.kinoteka.app.data.MediaType.TV }?.let { "$it сер." },
                         ).joinToString(" · "),
                         tmdbRating = null,
-                        myRating = e.rating,
+                        myRating = e.score,
                         onClick = { onItem(e) },
                         customPoster = e.customPoster,
                     )

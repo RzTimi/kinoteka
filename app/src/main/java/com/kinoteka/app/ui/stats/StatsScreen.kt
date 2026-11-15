@@ -113,7 +113,7 @@ fun StatsScreen(onBack: () -> Unit) {
     // Время: фильм ≈ его длительность (или 110 хв), серия ≈ её длительность (или 45 хв).
     val minutes = movies.sumOf { it.runtime ?: 110 } +
         entries.filter { it.type == MediaType.TV }.sumOf { it.watchedEpisodeCount * (it.runtime ?: 45) }
-    val ratings = entries.mapNotNull { it.rating }
+    val ratings = entries.mapNotNull { it.score }
     val points = snakePoints(entries)
     val levelIndex = snakeLevels.indexOfLast { points >= it.from }
     val level = snakeLevels[levelIndex]
@@ -147,7 +147,7 @@ fun StatsScreen(onBack: () -> Unit) {
                             )
                         } else {
                             // Чем выше уровень, тем длиннее змейка.
-                            SnakeRating(rating = (levelIndex + 3).coerceAtMost(10), onRate = {}, onClear = {})
+                            SnakeRating(rating = (levelIndex + 3).coerceAtMost(10).toDouble(), onRate = {}, onClear = {}, interactive = false)
                         }
                         Text("Рівень ${levelIndex + 1} з ${snakeLevels.size} · $points очок", color = MaterialTheme.colorScheme.onPrimaryContainer)
                         if (next != null) {
@@ -183,7 +183,7 @@ fun StatsScreen(onBack: () -> Unit) {
                 }
 
                 if (ratings.isNotEmpty()) ChartCard("Мої оцінки") {
-                    val counts = (1..10).map { r -> ratings.count { it == r } }
+                    val counts = (1..10).map { r -> ratings.count { Math.round(it).toInt() == r } }
                     BarChart(counts, (1..10).map { it.toString() })
                 }
 

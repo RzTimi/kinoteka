@@ -58,6 +58,7 @@ import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.WatchStatus
+import com.kinoteka.app.data.library.formatScore
 import com.kinoteka.app.data.mediaKey
 import com.kinoteka.app.ui.LocalContainer
 import com.kinoteka.app.ui.components.ChipRow
@@ -235,14 +236,14 @@ private fun ManualView(e: LibraryEntry) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Моя оцінка", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text(e.rating?.let { "$it / 10" } ?: "не оцінено", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text(e.score?.let { "${formatScore(it)} / 10" } ?: "не оцінено", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
             SnakeRating(
-                rating = e.rating,
+                rating = e.score,
                 onRate = { v ->
-                    edit { it.copy(rating = v, status = if (it.status == null || it.status == WatchStatus.WANT) WatchStatus.WATCHED else it.status, watchedAt = it.watchedAt ?: System.currentTimeMillis()) }
+                    edit { it.withScore(v).copy(status = if (it.status == null || it.status == WatchStatus.WANT) WatchStatus.WATCHED else it.status, watchedAt = it.watchedAt ?: System.currentTimeMillis()) }
                 },
-                onClear = { edit { it.copy(rating = null) } },
+                onClear = { edit { it.withScore(null) } },
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WatchStatus.entries.filter { !it.tvOnly || e.type == MediaType.TV }.forEach { st ->

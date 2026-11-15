@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlin.math.PI
+import kotlin.math.floor
 import kotlin.math.sin
 
 // Палитра змейки
@@ -43,48 +44,65 @@ private const val RIGHT_SPACE = 0.5f
 private const val STEPS = 14
 
 /**
- * Оценка-змейка: 10 делений, змейка растёт до выбранной оценки, голова — на конце.
- * Нажатие или проведение пальцем ставит оценку; повторное нажатие на голову снимает её.
+ * Оценка-змейка: 10 делений, змейка растёт до оценки (в том числе дробной, например 5.2),
+ * голова — на конце. Нажатие ставит целую оценку, проведение пальцем — с шагом 0,1.
+ * [interactive] = false — просто картинка (компактный вид, «Поділитися», питомец).
  */
 @Composable
-fun SnakeRating(rating: Int?, onRate: (Int) -> Unit, onClear: () -> Unit, modifier: Modifier = Modifier) {
+fun SnakeRating(
+    rating: Double?,
+    onRate: (Double) -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+    interactive: Boolean = true,
+    height: androidx.compose.ui.unit.Dp = 68.dp,
+) {
     val currentRating by rememberUpdatedState(rating)
     val ghost = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+
+    val gestures = if (!interactive) Modifier else Modifier
+        .pointerInput(Unit) {
+            detectTapGestures { pos ->
+                // Нажатие — целая оценка; повторное нажатие на ту же — снять.
+                val slot = slotAt(pos.x, size.width.toFloat()).toDouble()
+                if (slot == currentRating) onClear() else onRate(slot)
+            }
+        }
+        .pointerInput(Unit) {
+            detectHorizontalDragGestures { change, _ ->
+                val v = valueAt(change.position.x, size.width.toFloat())
+                if (v != currentRating) onRate(v)
+            }
+        }
 
     Canvas(
         modifier
             .fillMaxWidth()
-            .height(68.dp)
-            .semantics { contentDescription = rating?.let { "Моя оцінка: $it з 10" } ?: "Оцінка не поставлена" }
-            .pointerInput(Unit) {
-                detectTapGestures { pos ->
-                    val slot = slotAt(pos.x, size.width.toFloat())
-                    if (slot == currentRating) onClear() else onRate(slot)
-                }
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, _ ->
-                    val slot = slotAt(change.position.x, size.width.toFloat())
-                    if (slot != currentRating) onRate(slot)
-                }
-            }
+            .height(height)
+            .semantics { contentDescription = rating?.let { "Моя оцінка: ${formatScoreText(it)} з 10" } ?: "Оцінка не поставлена" }
+            .then(gestures)
     ) {
         val slotW = size.width / (SLOTS + RIGHT_SPACE)
         val centers = (1..SLOTS).map { i -> Offset(slotW * (i - 0.5f), size.height * 0.46f + waveY(i, size.height)) }
 
         // Призрачные точки: показывают, куда змейка может вырасти.
         for (i in 1..SLOTS) {
-            if (rating == null || i > rating) drawCircle(ghost, radius = slotW * 0.13f, center = centers[i - 1])
+            if (rating == null || i > rating + 0.35) drawCircle(ghost, radius = slotW * 0.13f, center = centers[i - 1])
         }
         if (rating == null) {
             drawSleepingHead(centers[0], slotW, ghost)
             return@Canvas
         }
 
-        val n = rating
-        val head = centers[n - 1]
-        if (n >= 2) {
-            val body = sampleSpline(centers.subList(0, n), STEPS)
+        // Дробная длина: голова — между делениями (5.2 → чуть дальше пятого).
+        val n = rating.coerceIn(1.0, SLOTS.toDouble()).toFloat()
+        val all = sampleSpline(centers, STEPS)
+        val visible = (n - 1f) * STEPS
+        val last = floor(visible).toInt().coerceAtMost(all.size - 1)
+        val frac = visible - last
+        val head = if (last + 1 < all.size) lerp(all[last], all[last + 1], frac) else all[last]
+        if (n > 1.05f) {
+            val body = all.subList(0, last + 1) + head
             val maxR = slotW * 0.28f
             val minR = slotW * 0.05f // острый кончик хвоста
             val radii = body.indices.map { k ->
@@ -120,6 +138,16 @@ fun SnakeRating(rating: Int?, onRate: (Int) -> Unit, onClear: () -> Unit, modifi
 
 private fun slotAt(x: Float, width: Float): Int =
     ((x / (width / (SLOTS + RIGHT_SPACE))).toInt() + 1).coerceIn(1, SLOTS)
+
+/** Позиция пальца → оценка с шагом 0,1 (центр деления i = оценка i). */
+private fun valueAt(x: Float, width: Float): Double {
+    val v = x / (width / (SLOTS + RIGHT_SPACE)) + 0.5
+    return (Math.round(v * 10) / 10.0).coerceIn(1.0, SLOTS.toDouble())
+}
+
+private fun lerp(a: Offset, b: Offset, t: Float) = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+
+private fun formatScoreText(v: Double) = com.kinoteka.app.data.library.formatScore(v)
 
 /** Волна тела: змейка извивается. */
 private fun waveY(i: Int, height: Float): Float = sin(i * 1.05 + PI / 3).toFloat() * height * 0.15f

@@ -15,6 +15,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.kinoteka.app.data.library.formatScore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.FilterChipDefaults
@@ -277,12 +281,17 @@ class DetailsViewModel(
     }
 
     /** Повторное нажатие на ту же звезду снимает оценку. */
-    fun rate(value: Int) = edit { e ->
-        val newRating = if (e.rating == value) null else value
-        e.copy(
-            rating = newRating,
-            status = if (newRating != null && (e.status == null || e.status == WatchStatus.WANT)) WatchStatus.WATCHED else e.status,
+    /** Поставить оценку с десятыми (null — снять). Статус «Переглянуто» ставится сам. */
+    fun setScore(value: Double?) = edit { e ->
+        e.withScore(value).copy(
+            status = if (value != null && (e.status == null || e.status == WatchStatus.WANT)) WatchStatus.WATCHED else e.status,
         )
+    }
+
+    /** Подстройка ±0,1. */
+    fun nudgeScore(delta: Double) {
+        val current = library.entries.value[key]?.score ?: 5.0
+        setScore((current + delta).coerceIn(1.0, 10.0))
     }
 
     fun setStatus(status: WatchStatus) = edit { e -> e.copy(status = if (e.status == status) null else status) }
@@ -389,7 +398,7 @@ private fun DetailsContent(
             title = title,
             year = d.year(),
             posterModel = PosterStorage.model(filesDir, entry?.customPoster, d.posterPath, "w500"),
-            rating = entry?.rating,
+            rating = entry?.score,
             note = entry?.note,
             onDismiss = { shareDialog = false },
         )
@@ -468,6 +477,16 @@ private fun DetailsContent(
                                 Spacer(Modifier.width(4.dp))
                                 Text(formatRating(d.voteAverage), fontWeight = FontWeight.Bold)
                                 Text("  TMDB · ${d.voteCount} голосів", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        // Ваша оценка — рядом с TMDB и IMDb.
+                        entry?.score?.let { my ->
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🐍", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.width(4.dp))
+                                Text(formatScore(my), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("  моя оцінка", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         if (imdbId != null) {
@@ -615,51 +634,96 @@ private fun infoLine(d: TmdbDetails, type: MediaType, section: Section): String 
 @Composable
 private fun MyRatingCard(type: MediaType, entry: LibraryEntry?, vm: DetailsViewModel) {
     var noteDialog by remember { mutableStateOf(false) }
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    val score = entry?.score
+    // Уже что-то выставлено — показываем компактную сводку, полное меню по кнопке «Змінити».
+    val hasData = score != null || entry?.status != null || entry?.favorite == true || !entry?.collections.isNullOrEmpty()
+    var editing by rememberSaveable(vm.key) { mutableStateOf(!hasData) }
+    val expanded = editing || !hasData
+
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateContentSize()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Моя оцінка", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Text(
-                    entry?.rating?.let { "$it / 10" } ?: "не оцінено",
+                    score?.let { "${formatScore(it)} / 10" } ?: "не оцінено",
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (entry?.rating != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (score != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
                 )
-            }
-            Spacer(Modifier.height(8.dp))
-            SnakeRating(
-                rating = entry?.rating,
-                onRate = vm::rate,
-                onClear = { entry?.rating?.let(vm::rate) },
-            )
-            Spacer(Modifier.height(12.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WatchStatus.entries.filter { !it.tvOnly || type == MediaType.TV }.forEach { st ->
-                    FilterChip(selected = entry?.status == st, onClick = { vm.setStatus(st) }, label = { Text(st.label) })
+                if (hasData) {
+                    Spacer(Modifier.width(4.dp))
+                    TextButton(onClick = { editing = !expanded }) {
+                        if (!expanded) {
+                            Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text(if (expanded) "Готово" else "Змінити")
+                    }
                 }
-                // «Улюблене» — отдельная метка, совмещается с любым статусом.
-                val fav = entry?.favorite == true
-                FilterChip(
-                    selected = fav,
-                    onClick = vm::toggleFavorite,
-                    label = { Text("Улюблене") },
-                    leadingIcon = {
-                        Icon(
-                            if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            null,
-                            Modifier.size(FilterChipDefaults.IconSize),
-                            tint = FavoriteRed,
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = FavoriteRed.copy(alpha = 0.15f)),
+            }
+            Spacer(Modifier.height(4.dp))
+
+            if (!expanded) {
+                // ---- Компактный вид: змейка и только выбранные плашки ----
+                SnakeRating(rating = score, onRate = {}, onClear = {}, interactive = false, height = 48.dp)
+                val selected = buildList {
+                    entry?.status?.let { add(it.label) }
+                    if (entry?.favorite == true) add("❤ Улюблене")
+                    entry?.collections?.forEach { add("📁 $it") }
+                }
+                if (selected.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        selected.forEach { label ->
+                            FilterChip(selected = true, onClick = { editing = true }, label = { Text(label) })
+                        }
+                    }
+                }
+            } else {
+                // ---- Полное меню ----
+                SnakeRating(rating = score, onRate = vm::setScore, onClear = { vm.setScore(null) })
+                Text(
+                    "Натисніть на змійку — ціла оцінка, проведіть пальцем — з десятими.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Точная подстройка ±0,1.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { vm.nudgeScore(-0.1) }, enabled = score != null && score > 1.0) { Text("−0,1") }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = { vm.nudgeScore(+0.1) }, enabled = score == null || score < 10.0) { Text("+0,1") }
+                    Spacer(Modifier.weight(1f))
+                    if (score != null) TextButton(onClick = { vm.setScore(null) }) { Text("Скинути") }
+                }
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WatchStatus.entries.filter { !it.tvOnly || type == MediaType.TV }.forEach { st ->
+                        FilterChip(selected = entry?.status == st, onClick = { vm.setStatus(st) }, label = { Text(st.label) })
+                    }
+                    // «Улюблене» — отдельная метка, совмещается с любым статусом.
+                    val fav = entry?.favorite == true
+                    FilterChip(
+                        selected = fav,
+                        onClick = vm::toggleFavorite,
+                        label = { Text("Улюблене") },
+                        leadingIcon = {
+                            Icon(
+                                if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                null,
+                                Modifier.size(FilterChipDefaults.IconSize),
+                                tint = FavoriteRed,
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = FavoriteRed.copy(alpha = 0.15f)),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                CollectionsRow(
+                    current = entry?.collections.orEmpty(),
+                    onToggle = vm::toggleCollection,
+                    onCreate = vm::createCollectionAndAdd,
                 )
             }
-            Spacer(Modifier.height(8.dp))
-            CollectionsRow(
-                current = entry?.collections.orEmpty(),
-                onToggle = vm::toggleCollection,
-                onCreate = vm::createCollectionAndAdd,
-            )
             val note = entry?.note?.takeIf { it.isNotBlank() }
             if (note == null) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))

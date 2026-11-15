@@ -163,7 +163,7 @@ private fun PersonContent(page: PersonPage, onOpen: (MediaCard) -> Unit, modifie
                 posterPath = credit.card.posterPath,
                 subtitle = listOfNotNull(credit.date?.take(4)?.ifBlank { null } ?: "скоро", credit.role).joinToString(" · "),
                 tmdbRating = credit.card.rating,
-                myRating = my?.rating,
+                myRating = my?.score,
                 onClick = { onOpen(credit.card) },
                 customPoster = my?.customPoster,
             )
