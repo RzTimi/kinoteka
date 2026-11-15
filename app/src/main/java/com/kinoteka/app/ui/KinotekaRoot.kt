@@ -45,6 +45,8 @@ import com.kinoteka.app.AppContainer
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.i18n.tr
+import com.kinoteka.app.data.share.ShareLink
+import com.kinoteka.app.ui.share.SharedListScreen
 import com.kinoteka.app.ui.about.AboutScreen
 import com.kinoteka.app.ui.settings.SettingsScreen
 import com.kinoteka.app.ui.person.PersonScreen
@@ -145,6 +147,21 @@ private fun AppScaffold() {
     val onSection: (Section) -> Unit = { sectionName = it.name }
 
     val openDetails: (MediaCard) -> Unit = { nav.navigate(DetailsRoute(it.type.path, it.id)) }
+
+    // Открыли ссылкой «Открыть в Кінотеці»: один фильм — сразу карточка, подборка — её экран.
+    val container = LocalContainer.current
+    val pendingLink by container.pendingLink.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingLink) {
+        val data = pendingLink ?: return@LaunchedEffect
+        container.pendingLink.value = null
+        val payload = ShareLink.decode(data) ?: return@LaunchedEffect
+        if (payload.isSingle) {
+            val item = payload.items.first()
+            nav.navigate(DetailsRoute(item.type.path, item.id))
+        } else {
+            nav.navigate(SharedListRoute(data))
+        }
+    }
     var showImport by remember { mutableStateOf(false) }
     if (showImport) ImportDialog(onDismiss = { showImport = false })
 
@@ -245,6 +262,10 @@ private fun AppScaffold() {
             composable<ManualRoute> { entry ->
                 val route = entry.toRoute<ManualRoute>()
                 ManualScreen(key = route.key, onBack = { nav.popBackStack() })
+            }
+            composable<SharedListRoute> { entry ->
+                val route = entry.toRoute<SharedListRoute>()
+                SharedListScreen(data = route.data, onBack = { nav.popBackStack() }, onOpen = openDetails)
             }
             composable<StatsRoute> {
                 StatsScreen(onBack = { nav.popBackStack() })

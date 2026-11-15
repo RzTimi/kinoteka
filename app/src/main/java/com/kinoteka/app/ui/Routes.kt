@@ -39,6 +39,9 @@ data class SeasonRoute(val tvId: Int, val season: Int, val showTitle: String)
 
 @Serializable data object StatsRoute
 
+/** Подборка, которую прислали ссылкой: data — сжатый состав из ссылки. */
+@Serializable data class SharedListRoute(val data: String)
+
 object RouteParams {
     private val json = Json
     fun encode(params: Map<String, String>): String = json.encodeToString(params)

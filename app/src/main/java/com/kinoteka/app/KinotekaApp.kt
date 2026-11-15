@@ -76,4 +76,6 @@ class AppContainer(app: Application) {
     val library = LibraryStore(app)
     val posters = PosterStorage(app)
     val sync = SyncManager(app, library, posters, GoogleAuth(app), DriveApi(http))
+    /** Данные из ссылки «Открыть в Кінотеці», которые ещё не показали. */
+    val pendingLink = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }

@@ -57,6 +57,9 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import com.kinoteka.app.data.MediaType
+import com.kinoteka.app.data.Section
+import com.kinoteka.app.data.share.ShareLink
+import com.kinoteka.app.data.share.SharedPayload
 import com.kinoteka.app.data.library.LibraryEntry
 import com.kinoteka.app.data.library.PosterStorage
 import com.kinoteka.app.data.library.formatScore
@@ -82,14 +85,24 @@ fun movieShareText(
     score: Double?,
     note: String?,
     manual: Boolean = false,
+    poster: String? = null,
+    section: Section? = null,
 ): String = buildString {
     append(if (type == MediaType.TV) "📺 " else "🎬 ")
     append(title)
     year?.let { append(" ($it)") }
     score?.let { append(" — 🐍 ${formatScore(it)}/10") }
     note?.takeIf { it.isNotBlank() }?.let { append("\n").append(tr("«$it»", "“$it”", "«$it»")) }
-    if (!manual) append("\n").append(tmdbUrl(type, id))
+    if (!manual) {
+        // Первая ссылка — TMDB: мессенджеры покажут под ней превью с постером.
+        append("\n").append(tmdbUrl(type, id))
+        val link = ShareLink.url(SharedPayload(items = listOf(ShareLink.item(type, id, title, year, poster, section, score))))
+        append("\n\n").append(openLabel()).append(" ").append(link)
+    }
 }
+
+/** «Відкрити в Кінотеці:» перед ссылкой. */
+private fun openLabel() = tr("🐍 Відкрити в Кінотеці:", "🐍 Open in Kinoteka:", "🐍 Открыть в Кинотеке:")
 
 /** Подпись к картинке: Telegram и другие режут длинные подписи (~1024 символа). */
 const val CAPTION_LIMIT = 1000
@@ -97,7 +110,14 @@ const val CAPTION_LIMIT = 1000
 /** Текст про список фильмов (подборку). [maxChars] — если не влезает, хвост заменяем на «…и ещё N». */
 fun listShareText(title: String, entries: List<LibraryEntry>, maxChars: Int = Int.MAX_VALUE): String {
     val n = entries.size
-    val head = "📁 $title — $n ${plural(n, "фільм|фільми|фільмів", "title|titles", "фильм|фильма|фильмов")}\n"
+    val header = "📁 $title — $n ${plural(n, "фільм|фільми|фільмів", "title|titles", "фильм|фильма|фильмов")}\n"
+    // Ссылка «Открыть в Кінотеці» — сразу под заголовком (вручную добавленных фильмов в ней нет).
+    val shareable = entries.filter { !it.manual }
+    val link = if (shareable.isEmpty()) null
+    else ShareLink.url(SharedPayload(title = title, items = shareable.map(ShareLink::item)))
+    val withLink = if (link != null) header + openLabel() + " " + link + "\n" else header
+    // В подпись к картинке огромная ссылка может не влезть — тогда без неё.
+    val head = if (withLink.length + 200 <= maxChars) withLink else header
     val footer = "\n\n" + tr("Надіслано з Кінотеки 🐍", "Sent from Kinoteka 🐍", "Отправлено из Кинотеки 🐍")
     val body = StringBuilder()
     for ((i, e) in entries.withIndex()) {

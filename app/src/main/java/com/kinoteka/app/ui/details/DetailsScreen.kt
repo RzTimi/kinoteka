@@ -402,7 +402,7 @@ private fun DetailsContent(
             posterModel = PosterStorage.model(filesDir, entry?.customPoster, d.posterPath, "w500"),
             rating = entry?.score,
             note = entry?.note,
-            shareText = com.kinoteka.app.ui.share.movieShareText(title, d.year(), type, d.id, entry?.score, entry?.note),
+            shareText = com.kinoteka.app.ui.share.movieShareText(title, d.year(), type, d.id, entry?.score, entry?.note, poster = d.posterPath, section = entry?.sectionEnum ?: Section.classify(type, d.genres.map { it.id }, d.originalLanguage)),
             onDismiss = { shareDialog = false },
         )
     }

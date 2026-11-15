@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d1a10">
+<title>Кінотека</title>
+<meta property="og:title" content="Кінотека 🐍">
+<meta property="og:description" content="Фільми, якими з вами поділилися">
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #0d1a10; --card: #17291b; --card2: #213628; --text: #e7f1e2; --muted: #9fb59a;
+    --accent: #a5d86e; --accent-ink: #12210f; --snake: #2e7d32;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background-image: radial-gradient(circle at 20% -10%, #1f4a26 0, transparent 55%);
+    min-height: 100vh;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+  .brand { color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  h1 { font-size: 26px; margin: 6px 0 4px; line-height: 1.2; overflow-wrap: anywhere; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; margin: 0 0 22px; }
+  .btn {
+    display: block; text-align: center; padding: 14px 18px; border-radius: 999px;
+    font-weight: 700; text-decoration: none; font-size: 16px;
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.secondary { background: var(--card2); color: var(--text); }
+  .hint { color: var(--muted); font-size: 13px; text-align: center; margin: 2px 0 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px 12px; }
+  .item { color: inherit; text-decoration: none; }
+  .poster {
+    position: relative; aspect-ratio: 2 / 3; border-radius: 10px; overflow: hidden;
+    background: var(--card2); display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 13px; text-align: center; padding: 0;
+  }
+  .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .score {
+    position: absolute; top: 6px; right: 6px; background: var(--snake); color: #fff;
+    border-radius: 6px; padding: 1px 6px; font-size: 13px; font-weight: 700;
+  }
+  .t { font-weight: 600; margin-top: 6px; font-size: 15px; overflow-wrap: anywhere; }
+  .y { color: var(--muted); font-size: 13px; }
+  .error { background: var(--card); border-radius: 16px; padding: 20px; color: var(--muted); }
+  footer { color: var(--muted); font-size: 12px; margin-top: 32px; text-align: center; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">Кінотека 🐍</div>
+  <h1 id="title"></h1>
+  <p class="sub" id="sub"></p>
+  <div class="actions" id="actions"></div>
+  <div class="grid" id="grid"></div>
+  <footer id="footer"></footer>
+</main>
+<script>
+(function () {
+  "use strict";
+  var REPO = "https://github.com/RzTimi/kinoteka/releases/latest";
+  var IMG = "https://image.tmdb.org/t/p/w342";
+
+  var lang = (navigator.language || "uk").slice(0, 2);
+  if (lang !== "ru" && lang !== "en") lang = "uk";
+  var S = {
+    uk: { single: "Вам надіслали фільм", list: "Підбірка", count: function (n) { return n + " " + pl(n, "фільм", "фільми", "фільмів"); },
+          open: "Відкрити в Кінотеці", add: "Відкрити й додати собі", noApp: "Немає застосунку? Завантажити Кінотеку",
+          android: "Кнопка відкриє застосунок, якщо він встановлений.", tmdb: "Відкрити на TMDB",
+          bad: "Посилання пошкоджене або неповне. Попросіть надіслати його ще раз.", old: "Ваш браузер не вміє відкривати такі посилання. Оновіть браузер або відкрийте в Chrome.",
+          foot: "Дані про фільми — TMDB. Цей продукт використовує TMDB API, але не схвалений і не сертифікований TMDB.", by: "оцінка відправника" },
+    ru: { single: "Вам прислали фильм", list: "Подборка", count: function (n) { return n + " " + pl(n, "фильм", "фильма", "фильмов"); },
+          open: "Открыть в Кинотеке", add: "Открыть и добавить себе", noApp: "Нет приложения? Скачать Кинотеку",
+          android: "Кнопка откроет приложение, если оно установлено.", tmdb: "Открыть на TMDB",
+          bad: "Ссылка повреждена или неполная. Попросите прислать её ещё раз.", old: "Ваш браузер не умеет открывать такие ссылки. Обновите браузер или откройте в Chrome.",
+          foot: "Данные о фильмах — TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.", by: "оценка отправителя" },
+    en: { single: "A movie was shared with you", list: "Collection", count: function (n) { return n + (n === 1 ? " title" : " titles"); },
+          open: "Open in Kinoteka", add: "Open and add to my list", noApp: "No app? Download Kinoteka",
+          android: "The button opens the app if it is installed.", tmdb: "Open on TMDB",
+          bad: "This link is broken or incomplete. Ask for it to be sent again.", old: "Your browser can't open this link. Update it or open the link in Chrome.",
+          foot: "Movie data by TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.", by: "sender's rating" }
+  }[lang];
+  document.documentElement.lang = lang;
+
+  function pl(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function fmt(r) { return (Math.round(r * 10) / 10).toString(); }
+  function fail(msg) {
+    document.getElementById("title").textContent = "Кінотека";
+    document.getElementById("grid").appendChild(el("div", "error", msg));
+  }
+
+  function b64urlToBytes(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    var bin = atob(s), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function decode(d) {
+    var stream = new Blob([b64urlToBytes(d)]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    var text = await new Response(stream).text();
+    return JSON.parse(text);
+  }
+
+  function render(p, d) {
+    var items = p.i || [];
+    var single = !p.t && items.length === 1;
+    var title = single ? items[0].n : p.t;
+    document.title = title + " — Кінотека";
+    document.getElementById("title").textContent = (single ? "" : "📁 ") + title;
+    var sub = single ? S.single : S.count(items.length);
+    if (single && items[0].y) sub = items[0].y + " · " + sub;
+    document.getElementById("sub").textContent = sub;
+
+    // Кнопка открывает приложение (intent:// понимает Chrome и встроенные браузеры на Android).
+    var actions = document.getElementById("actions");
+    var isAndroid = /Android/i.test(navigator.userAgent);
+    var appLink = "intent://open?d=" + d + "#Intent;scheme=kinoteka;package=com.kinoteka.app;S.browser_fallback_url=" +
+      encodeURIComponent(REPO) + ";end";
+    var open = el("a", "btn primary", single ? S.open : S.add);
+    open.href = isAndroid ? appLink : REPO;
+    actions.appendChild(open);
+    var get = el("a", "btn secondary", S.noApp);
+    get.href = REPO;
+    actions.appendChild(get);
+    if (isAndroid) actions.appendChild(el("p", "hint", S.android));
+
+    var grid = document.getElementById("grid");
+    items.forEach(function (it) {
+      var a = el("a", "item");
+      a.href = "https://www.themoviedb.org/" + (it.k === "t" ? "tv" : "movie") + "/" + it.id;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.title = S.tmdb;
+      var poster = el("div", "poster");
+      if (it.p) {
+        var img = el("img");
+        img.src = IMG + it.p;
+        img.alt = it.n;
+        img.loading = "lazy";
+        poster.appendChild(img);
+      } else {
+        poster.textContent = it.n;
+      }
+      if (typeof it.r === "number") {
+        var sc = el("span", "score", "🐍 " + fmt(it.r));
+        sc.title = S.by;
+        poster.appendChild(sc);
+      }
+      a.appendChild(poster);
+      a.appendChild(el("div", "t", it.n));
+      if (it.y) a.appendChild(el("div", "y", it.y));
+      grid.appendChild(a);
+    });
+
+    document.getElementById("footer").textContent = S.foot;
+  }
+
+  var m = /(?:^|[#&])d=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (!m) { fail(S.bad); return; }
+  if (typeof DecompressionStream === "undefined") { fail(S.old); return; }
+  decode(m[1]).then(function (p) { render(p, m[1]); }).catch(function () { fail(S.bad); });
+})();
+</script>
+</body>
+</html>
