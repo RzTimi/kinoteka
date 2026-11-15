@@ -142,7 +142,7 @@ fun LibraryScreen(onItem: (LibraryEntry) -> Unit, onAccount: () -> Unit) {
             )
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(108.dp),
+                columns = GridCells.Adaptive(120.dp),
                 modifier = modifier,
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

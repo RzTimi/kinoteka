@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,7 +75,7 @@ fun HomeScreen(
     onSection: (Section) -> Unit,
     onItem: (MediaCard) -> Unit,
     onMore: (Feed) -> Unit,
-    onAbout: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     val repo = LocalContainer.current.repository
     // Отдельная ViewModel на каждый раздел: при переключении назад всё уже загружено.
@@ -89,7 +89,7 @@ fun HomeScreen(
                 TopAppBar(
                     title = { Text("Кінотека", fontWeight = FontWeight.Bold) },
                     actions = {
-                        IconButton(onClick = onAbout) { Icon(Icons.Outlined.Info, "Про застосунок") }
+                        IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "Налаштування") }
                     },
                 )
                 SectionChips(selected = section, onSelect = { it?.let(onSection) })

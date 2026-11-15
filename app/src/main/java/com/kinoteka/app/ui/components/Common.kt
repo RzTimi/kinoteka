@@ -181,9 +181,9 @@ fun PosterCard(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (!subtitle.isNullOrBlank()) {
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -197,9 +197,9 @@ private fun Badge(text: String, modifier: Modifier, background: Color, content: 
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Default.Star, null, tint = if (content == Color.White) StarColor else content, modifier = Modifier.size(12.dp))
-        Spacer(Modifier.width(2.dp))
-        Text(text, color = content, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        Icon(Icons.Default.Star, null, tint = if (content == Color.White) StarColor else content, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(3.dp))
+        Text(text, color = content, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -225,14 +225,14 @@ fun MediaRow(
     items: List<MediaCard>,
     onItem: (MediaCard) -> Unit,
     onMore: (() -> Unit)?,
-    itemWidth: Dp = 116.dp,
+    itemWidth: Dp = 128.dp,
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             if (onMore != null) {
                 TextButton(onClick = onMore) {
                     Text("Усі")
@@ -274,7 +274,7 @@ fun MediaGrid(
         if (nearEnd && hasMore && !loadingMore) onLoadMore()
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(108.dp),
+        columns = GridCells.Adaptive(120.dp),
         state = state,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),

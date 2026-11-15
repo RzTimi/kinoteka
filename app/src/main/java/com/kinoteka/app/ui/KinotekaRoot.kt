@@ -45,10 +45,13 @@ import com.kinoteka.app.AppContainer
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.ui.about.AboutScreen
+import com.kinoteka.app.ui.settings.SettingsScreen
 import com.kinoteka.app.ui.account.AccountScreen
 import com.kinoteka.app.ui.account.WelcomeSyncDialog
 import com.kinoteka.app.ui.account.rememberGoogleSignIn
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.kinoteka.app.ui.browse.BrowseScreen
 import com.kinoteka.app.ui.components.LocalLibrary
 import com.kinoteka.app.ui.details.DetailsScreen
@@ -78,7 +81,15 @@ private val tabs = listOf(
 @Composable
 fun KinotekaRoot(container: AppContainer) {
     val library by container.library.entries.collectAsStateWithLifecycle()
-    CompositionLocalProvider(LocalContainer provides container, LocalLibrary provides library) {
+    val scale by container.ui.scale.collectAsStateWithLifecycle()
+    // «Розмір інтерфейсу»: увеличиваем плотность, и пропорционально растёт всё — текст, кнопки, постеры.
+    val base = LocalDensity.current
+    val scaled = remember(base, scale) { Density(base.density * scale.factor, base.fontScale) }
+    CompositionLocalProvider(
+        LocalContainer provides container,
+        LocalLibrary provides library,
+        LocalDensity provides scaled,
+    ) {
         if (!container.hasApiKey) {
             NoApiKeyScreen()
         } else {
@@ -144,6 +155,13 @@ private fun AppScaffold() {
                     onMore = { feed ->
                         nav.navigate(BrowseRoute(section.name, feed.type.path, feed.title, RouteParams.encode(feed.params)))
                     },
+                    onSettings = { nav.navigate(SettingsRoute) },
+                )
+            }
+            composable<SettingsRoute> {
+                SettingsScreen(
+                    onBack = { nav.popBackStack() },
+                    onAccount = { nav.navigate(AccountRoute) },
                     onAbout = { nav.navigate(AboutRoute) },
                 )
             }

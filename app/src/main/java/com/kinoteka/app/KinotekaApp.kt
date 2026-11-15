@@ -2,6 +2,7 @@ package com.kinoteka.app
 
 import android.app.Application
 import com.kinoteka.app.data.MediaRepository
+import com.kinoteka.app.data.UiSettings
 import com.kinoteka.app.data.library.LibraryStore
 import com.kinoteka.app.data.library.PosterStorage
 import com.kinoteka.app.data.sync.DriveApi
@@ -28,4 +29,5 @@ class AppContainer(app: Application) {
     val library = LibraryStore(app)
     val posters = PosterStorage(app)
     val sync = SyncManager(app, library, posters, GoogleAuth(app), DriveApi(http))
+    val ui = UiSettings(app)
 }
