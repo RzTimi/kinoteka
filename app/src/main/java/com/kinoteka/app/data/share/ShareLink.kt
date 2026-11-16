@@ -1,7 +1,6 @@
 package com.kinoteka.app.data.share
 
 import android.net.Uri
-import android.util.Base64
 import com.kinoteka.app.data.MediaType
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.data.library.LibraryEntry
@@ -76,11 +75,11 @@ object ShareLink {
         val buf = ByteArray(1024)
         while (!deflater.finished()) out.write(buf, 0, deflater.deflate(buf))
         deflater.end()
-        return Base64.encodeToString(out.toByteArray(), Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(out.toByteArray())
     }
 
     fun decode(data: String): SharedPayload? = runCatching {
-        val bytes = Base64.decode(data, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        val bytes = java.util.Base64.getUrlDecoder().decode(data)
         val inflater = Inflater(true).apply { setInput(bytes) }
         val out = ByteArrayOutputStream()
         val buf = ByteArray(1024)

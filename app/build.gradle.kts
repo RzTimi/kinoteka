@@ -71,6 +71,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    testOptions {
+        // В обычных тестах на компьютере Android-классы — заглушки; пусть возвращают значения по умолчанию.
+        unitTests.isReturnDefaultValues = true
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -106,4 +111,6 @@ dependencies {
 
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.glance.appwidget)
+
+    testImplementation(libs.junit)
 }

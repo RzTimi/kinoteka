@@ -45,6 +45,7 @@ import com.kinoteka.app.AppContainer
 import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.i18n.tr
+import com.kinoteka.app.ui.components.UpdateDialog
 import com.kinoteka.app.data.share.ShareLink
 import com.kinoteka.app.ui.share.SharedListScreen
 import com.kinoteka.app.ui.about.AboutScreen
@@ -147,6 +148,14 @@ private fun AppScaffold() {
     val onSection: (Section) -> Unit = { sectionName = it.name }
 
     val openDetails: (MediaCard) -> Unit = { nav.navigate(DetailsRoute(it.type.path, it.id)) }
+
+    // Тихая проверка обновлений при запуске (не чаще раза в 12 часов).
+    var update by remember { mutableStateOf<com.kinoteka.app.data.update.AppUpdate?>(null) }
+    val updates = LocalContainer.current.updates
+    LaunchedEffect(Unit) { update = updates.check(force = false) }
+    update?.let { u ->
+        UpdateDialog(u, onDismiss = { update = null }, onSkip = { updates.skip(u.version) })
+    }
 
     // Открыли ссылкой «Открыть в Кінотеці»: один фильм — сразу карточка, подборка — её экран.
     val container = LocalContainer.current

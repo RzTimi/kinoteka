@@ -1,5 +1,16 @@
 package com.kinoteka.app.ui.about
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.SystemUpdate
+import com.kinoteka.app.ui.LocalContainer
+import com.kinoteka.app.ui.components.UpdateDialog
+import com.kinoteka.app.data.update.AppUpdate
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,6 +68,15 @@ private const val TMDB_URL = "https://www.themoviedb.org/"
 private const val JUSTWATCH_URL = "https://www.justwatch.com/"
 private const val YOUTUBE_URL = "https://www.youtube.com/"
 private const val GITHUB_URL = "https://github.com/RzTimi/kinoteka"
+private const val PRIVACY_URL = "https://rztimi.github.io/kinoteka/privacy/"
+
+/** Ручная проверка обновлений на экране «О приложении». */
+private sealed interface UpdateCheckState {
+    data object Idle : UpdateCheckState
+    data object Checking : UpdateCheckState
+    data object UpToDate : UpdateCheckState
+    data class Found(val update: AppUpdate) : UpdateCheckState
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +85,11 @@ fun AboutScreen(onBack: () -> Unit, onAccount: () -> Unit) {
     val library = LocalLibrary.current.values
     val rated = library.count { it.rating != null }
     val customPosters = library.count { it.customPoster != null }
+    val container = LocalContainer.current
+    val scope = rememberCoroutineScope()
+    var updateState by remember { mutableStateOf<UpdateCheckState>(UpdateCheckState.Idle) }
+    var showUpdate by remember { mutableStateOf<AppUpdate?>(null) }
+    showUpdate?.let { u -> UpdateDialog(u, onDismiss = { showUpdate = null }) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -173,6 +198,28 @@ fun AboutScreen(onBack: () -> Unit, onAccount: () -> Unit) {
                 // Проект
                 InfoCard(tr("Проєкт", "Project", "Проект")) {
                     LinkRow(Icons.Default.Code, tr("Вихідний код на GitHub", "Source code on GitHub", "Исходный код на GitHub"), "github.com/RzTimi/kinoteka") { uri.openUri(GITHUB_URL) }
+                    // Проверка обновлений вручную (при запуске она идёт сама, раз в 12 часов).
+                    val updateLabel = when (val st = updateState) {
+                        UpdateCheckState.Idle -> tr("Встановлено ${BuildConfig.VERSION_NAME}", "Installed: ${BuildConfig.VERSION_NAME}", "Установлена ${BuildConfig.VERSION_NAME}")
+                        UpdateCheckState.Checking -> tr("Перевіряємо…", "Checking…", "Проверяем…")
+                        UpdateCheckState.UpToDate -> tr("У вас остання версія ${BuildConfig.VERSION_NAME} ✓", "You have the latest version ${BuildConfig.VERSION_NAME} ✓", "У вас последняя версия ${BuildConfig.VERSION_NAME} ✓")
+                        is UpdateCheckState.Found -> tr("Доступна версія ${st.update.version}", "Version ${st.update.version} is available", "Доступна версия ${st.update.version}")
+                    }
+                    LinkRow(Icons.Default.SystemUpdate, tr("Перевірити оновлення", "Check for updates", "Проверить обновления"), updateLabel) {
+                        when (val st = updateState) {
+                            is UpdateCheckState.Found -> showUpdate = st.update
+                            UpdateCheckState.Checking -> Unit
+                            else -> {
+                                updateState = UpdateCheckState.Checking
+                                scope.launch {
+                                    val found = container.updates.check(force = true)
+                                    updateState = if (found != null) UpdateCheckState.Found(found) else UpdateCheckState.UpToDate
+                                    showUpdate = found
+                                }
+                            }
+                        }
+                    }
+                    LinkRow(Icons.Default.PrivacyTip, tr("Політика конфіденційності", "Privacy policy", "Политика конфиденциальности"), "rztimi.github.io/kinoteka/privacy") { uri.openUri(PRIVACY_URL) }
                 }
 
                 Text(
