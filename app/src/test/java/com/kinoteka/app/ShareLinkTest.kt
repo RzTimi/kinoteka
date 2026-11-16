@@ -55,3 +55,36 @@ class ShareLinkTest {
         assertEquals(8.0, p.items.single().score!!, 0.0001)
     }
 }
+
+class ShareTextTest {
+    private fun e(id: Int, title: String, score: Double? = null) =
+        com.kinoteka.app.data.library.LibraryEntry(mediaType = "movie", tmdbId = id, title = title, year = "2026", section = "MOVIES")
+            .withScore(score)
+
+    @Test fun `list text has one kinoteka link at the end and no tmdb links`() {
+        com.kinoteka.app.i18n.I18n.language = com.kinoteka.app.i18n.AppLanguage.RU
+        val text = com.kinoteka.app.ui.share.listShareText("тест", listOf(e(1, "Дюна"), e(2, "Сердце зверя", 5.9)))
+        assertFalse(text.contains("themoviedb.org"))
+        assertEquals(1, Regex(Regex.escape("rztimi.github.io/kinoteka/open/#d=")).findAll(text).count())
+        assertTrue(text.trimEnd().lines().last().startsWith("https://rztimi.github.io/kinoteka/open/#d="))
+        assertTrue(text.contains("2. Сердце зверя (2026) — 🐍 5.9"))
+        com.kinoteka.app.i18n.I18n.language = com.kinoteka.app.i18n.AppLanguage.UK
+    }
+
+    @Test fun `long caption is trimmed but keeps the link`() {
+        val many = (1..60).map { e(it, "Дуже довга назва фільму номер $it") }
+        val caption = com.kinoteka.app.ui.share.listShareText("Велика", many.take(10), maxChars = com.kinoteka.app.ui.share.CAPTION_LIMIT)
+        assertTrue(caption.length <= com.kinoteka.app.ui.share.CAPTION_LIMIT)
+        assertTrue(caption.contains("rztimi.github.io/kinoteka/open/#d="))
+        val huge = com.kinoteka.app.ui.share.listShareText("Велика", many, maxChars = com.kinoteka.app.ui.share.CAPTION_LIMIT)
+        assertTrue(huge.length <= com.kinoteka.app.ui.share.CAPTION_LIMIT)
+    }
+
+    @Test fun `movie caption for an image has no tmdb link`() {
+        val caption = com.kinoteka.app.ui.share.movieShareText("Дюна", "2026", com.kinoteka.app.data.MediaType.MOVIE, 1, 5.2, null, withTmdb = false)
+        assertFalse(caption.contains("themoviedb.org"))
+        assertTrue(caption.contains("rztimi.github.io/kinoteka/open/#d="))
+        val text = com.kinoteka.app.ui.share.movieShareText("Дюна", "2026", com.kinoteka.app.data.MediaType.MOVIE, 1, 5.2, null)
+        assertTrue(text.contains("themoviedb.org/movie/1"))
+    }
+}

@@ -71,6 +71,8 @@ fun ShareCardDialog(
     note: String?,
     /** Тот же фильм текстом со ссылкой — для кнопки «Текстом». */
     shareText: String? = null,
+    /** Подпись к картинке (без ссылки на TMDB — постер уже на картинке). */
+    imageCaption: String? = null,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -144,7 +146,7 @@ fun ShareCardDialog(
                             // Подпись к картинке — тот же текст со ссылкой, что и «Текстом».
                             com.kinoteka.app.ui.share.shareLayer(
                                 context, layer,
-                                shareText ?: tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"),
+                                imageCaption ?: shareText ?: tr("$title — моя оцінка в Кінотеці 🐍", "$title — my rating on Kinoteka 🐍", "$title — моя оценка в Кинотеке 🐍"),
                             )
                         }
                         busy = false

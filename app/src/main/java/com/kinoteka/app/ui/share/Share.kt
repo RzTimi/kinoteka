@@ -87,6 +87,11 @@ fun movieShareText(
     manual: Boolean = false,
     poster: String? = null,
     section: Section? = null,
+    /**
+     * Ссылка на TMDB: нужна в тексте (мессенджер покажет под ней превью с постером).
+     * В подписи к картинке не нужна — постер уже на картинке, а TMDB есть на странице Кінотеки.
+     */
+    withTmdb: Boolean = true,
 ): String = buildString {
     append(if (type == MediaType.TV) "📺 " else "🎬 ")
     append(title)
@@ -94,10 +99,9 @@ fun movieShareText(
     score?.let { append(" — 🐍 ${formatScore(it)}/10") }
     note?.takeIf { it.isNotBlank() }?.let { append("\n").append(tr("«$it»", "“$it”", "«$it»")) }
     if (!manual) {
-        // Первая ссылка — TMDB: мессенджеры покажут под ней превью с постером.
-        append("\n").append(tmdbUrl(type, id))
+        if (withTmdb) append("\n").append(tmdbUrl(type, id))
         val link = ShareLink.url(SharedPayload(items = listOf(ShareLink.item(type, id, title, year, poster, section, score))))
-        append("\n\n").append(openLabel()).append(" ").append(link)
+        append("\n\n").append(openLabel()).append("\n").append(link)
     }
 }
 
@@ -107,25 +111,28 @@ private fun openLabel() = tr("🐍 Відкрити в Кінотеці:", "🐍
 /** Подпись к картинке: Telegram и другие режут длинные подписи (~1024 символа). */
 const val CAPTION_LIMIT = 1000
 
-/** Текст про список фильмов (подборку). [maxChars] — если не влезает, хвост заменяем на «…и ещё N». */
+/**
+ * Текст про список фильмов (подборку): заголовок, нумерованный список и одна ссылка «Открыть в Кінотеці»
+ * в конце. Ссылки на TMDB по каждому фильму не пишем — они есть на странице этой ссылки.
+ * [maxChars] — если не влезает, хвост списка заменяем на «…и ещё N».
+ */
 fun listShareText(title: String, entries: List<LibraryEntry>, maxChars: Int = Int.MAX_VALUE): String {
     val n = entries.size
-    val header = "📁 $title — $n ${plural(n, "фільм|фільми|фільмів", "title|titles", "фильм|фильма|фильмов")}\n"
-    // Ссылка «Открыть в Кінотеці» — сразу под заголовком (вручную добавленных фильмов в ней нет).
+    val head = "📁 $title — $n ${plural(n, "фільм|фільми|фільмів", "title|titles", "фильм|фильма|фильмов")}\n"
+    // Вручную добавленных фильмов в ссылке нет (их нет на TMDB).
     val shareable = entries.filter { !it.manual }
     val link = if (shareable.isEmpty()) null
     else ShareLink.url(SharedPayload(title = title, items = shareable.map(ShareLink::item)))
-    val withLink = if (link != null) header + openLabel() + " " + link + "\n" else header
-    // В подпись к картинке огромная ссылка может не влезть — тогда без неё.
-    val head = if (withLink.length + 200 <= maxChars) withLink else header
-    val footer = "\n\n" + tr("Надіслано з Кінотеки 🐍", "Sent from Kinoteka 🐍", "Отправлено из Кинотеки 🐍")
+    val withLink = link?.let { "\n\n" + openLabel() + "\n" + it }
+    val sentFrom = "\n\n" + tr("Надіслано з Кінотеки 🐍", "Sent from Kinoteka 🐍", "Отправлено из Кинотеки 🐍")
+    // В подпись к картинке огромная ссылка может не влезть — тогда без неё (текстом уйдёт целиком).
+    val footer = if (withLink != null && head.length + withLink.length + 120 <= maxChars) withLink else sentFrom
     val body = StringBuilder()
     for ((i, e) in entries.withIndex()) {
         val line = buildString {
             append("\n").append(i + 1).append(". ").append(e.displayTitle)
             e.year?.let { append(" ($it)") }
             e.score?.let { append(" — 🐍 ${formatScore(it)}") }
-            if (!e.manual) append("\n   ").append(tmdbUrl(e.type, e.tmdbId))
         }
         val left = n - i
         val more = "\n" + tr("…і ще $left", "…and $left more", "…и ещё $left")
