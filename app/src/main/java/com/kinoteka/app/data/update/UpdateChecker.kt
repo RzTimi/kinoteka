@@ -3,6 +3,7 @@ package com.kinoteka.app.data.update
 import android.content.Context
 import com.kinoteka.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -25,6 +26,7 @@ private data class GhRelease(
 private data class GhAsset(
     val name: String,
     @SerialName("browser_download_url") val url: String,
+    val size: Long = 0,
 )
 
 /** Вышла новая версия: номер, что нового и откуда качать. */
@@ -34,6 +36,9 @@ data class AppUpdate(
     /** Прямая ссылка на APK (если он приложен к релизу), иначе страница релиза. */
     val downloadUrl: String,
     val pageUrl: String,
+    /** Прямая ссылка на APK для скачивания внутри приложения (null — APK к релизу не приложен). */
+    val apkUrl: String? = null,
+    val apkSize: Long = 0,
 )
 
 /**
@@ -42,6 +47,7 @@ data class AppUpdate(
  */
 class UpdateChecker(context: Context, private val http: OkHttpClient) {
     private val prefs = context.getSharedPreferences("updates", Context.MODE_PRIVATE)
+    private val cacheDir = context.cacheDir
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
@@ -62,7 +68,51 @@ class UpdateChecker(context: Context, private val http: OkHttpClient) {
             notes = cleanNotes(release.body.orEmpty()),
             downloadUrl = apk?.url ?: release.htmlUrl,
             pageUrl = release.htmlUrl,
+            apkUrl = apk?.url,
+            apkSize = apk?.size ?: 0,
         )
+    }
+
+    /**
+     * Скачать APK обновления в кэш приложения. [onProgress] — доля 0..1 (или -1, если размер неизвестен).
+     * Проверяем размер: недокачанный файл установщику не отдаём.
+     */
+    suspend fun download(update: AppUpdate, onProgress: (Float) -> Unit): java.io.File = withContext(Dispatchers.IO) {
+        val url = update.apkUrl ?: error("no apk")
+        val dir = java.io.File(cacheDir, "updates").apply { mkdirs() }
+        // Старые скачанные версии больше не нужны.
+        dir.listFiles()?.forEach { it.delete() }
+        val target = java.io.File(dir, "Kinoteka-${update.version}.apk")
+        val request = Request.Builder().url(url).header("User-Agent", "Kinoteka-Android").cacheControl(CacheControl.FORCE_NETWORK).build()
+        http.newBuilder().cache(null).build().newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw java.io.IOException("HTTP ${response.code}")
+            val body = response.body
+            val total = body.contentLength().takeIf { it > 0 } ?: update.apkSize
+            var done = 0L
+            body.byteStream().use { input ->
+                target.outputStream().use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    var lastReport = 0L
+                    while (true) {
+                        ensureActive()
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        done += n
+                        if (done - lastReport > 32 * 1024) {
+                            lastReport = done
+                            onProgress(if (total > 0) (done.toFloat() / total).coerceAtMost(1f) else -1f)
+                        }
+                    }
+                }
+            }
+            if (total > 0 && done != total) {
+                target.delete()
+                throw java.io.IOException("incomplete download")
+            }
+        }
+        onProgress(1f)
+        target
     }
 
     /** «Пропустить эту версию» — больше не напоминать о ней при запуске. */
