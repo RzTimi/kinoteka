@@ -34,9 +34,21 @@ data class SyncState(
     val folderId: String? = null,
     /** Токен перестал выдаваться без окна: нужно нажать «Увійти» ещё раз. */
     val needsReauth: Boolean = false,
+    /** Вошли в другой аккаунт, а на телефоне оценки прежнего — ждём, что выберет пользователь. */
+    val pendingSwitch: AccountSwitch? = null,
 ) {
     val signedIn: Boolean get() = email != null
 }
+
+/** Вход в другой аккаунт: чьи оценки сейчас на телефоне и есть ли несохранённые изменения. */
+data class AccountSwitch(
+    val email: String,
+    val name: String?,
+    val photo: String?,
+    val previous: String,
+    /** Изменения, сделанные после выхода из прежнего аккаунта (их нет на его Диске). */
+    val unsynced: Boolean,
+)
 
 /**
  * Синхронизация с Google Диском:
@@ -71,7 +83,16 @@ class SyncManager(
         get() = prefs.getBoolean(KEY_WELCOME, false)
         set(value) = prefs.edit().putBoolean(KEY_WELCOME, value).apply()
 
+    /** Токен нового аккаунта, пока пользователь решает, что делать с оценками на телефоне. */
+    private var pendingToken: String? = null
+
     init {
+        // Старые версии не помнили, чей аккаунт хозяин данных на телефоне: считаем, что тот, в который вошли.
+        if (!prefs.contains(KEY_OWNER)) _state.value.email?.let { prefs.edit().putString(KEY_OWNER, it).apply() }
+        // Изменения без входа в аккаунт — помечаем: на Диске их пока нет.
+        library.localVersion.drop(1).onEach {
+            if (!_state.value.signedIn) prefs.edit().putBoolean(KEY_DIRTY, true).apply()
+        }.launchIn(scope)
         // Синхронизация при запуске.
         scope.launch {
             library.loaded.first { it }
@@ -99,18 +120,58 @@ class SyncManager(
             runCatching { drive.about(token) }
                 .onSuccess { user ->
                     val email = user.emailAddress ?: result.toGoogleSignInAccount()?.email
-                    prefs.edit()
-                        .putString(KEY_EMAIL, email)
-                        .putString(KEY_NAME, user.displayName)
-                        .putString(KEY_PHOTO, user.photoLink)
-                        .apply()
-                    _state.update {
-                        it.copy(email = email, name = user.displayName, photo = user.photoLink, error = null, needsReauth = false)
+                    val owner = prefs.getString(KEY_OWNER, null)
+                    if (email != null && needsSwitchPrompt(owner, email, library.entries.value.isNotEmpty())) {
+                        // На телефоне оценки другого аккаунта — не смешиваем без спроса.
+                        pendingToken = token
+                        _state.update {
+                            it.copy(
+                                pendingSwitch = AccountSwitch(email, user.displayName, user.photoLink, owner!!, prefs.getBoolean(KEY_DIRTY, false)),
+                                error = null,
+                            )
+                        }
+                        return@onSuccess
                     }
+                    commitAccount(email, user.displayName, user.photoLink)
                     sync(token)
                 }
                 .onFailure { e -> _state.update { it.copy(error = describe(e)) } }
         }
+    }
+
+    private fun commitAccount(email: String?, name: String?, photo: String?) {
+        prefs.edit()
+            .putString(KEY_EMAIL, email)
+            .putString(KEY_NAME, name)
+            .putString(KEY_PHOTO, photo)
+            .remove(KEY_FOLDER)
+            .remove(KEY_LAST_SYNC)
+            .apply()
+        _state.update {
+            it.copy(email = email, name = name, photo = photo, error = null, needsReauth = false, pendingSwitch = null, folderId = null, lastSync = null)
+        }
+    }
+
+    /**
+     * Выбор при входе в другой аккаунт.
+     * [keepPhoneData] = false — загрузить оценки нового аккаунта (прежние остаются на Диске прежнего);
+     * true — перенести то, что на телефоне, в новый аккаунт.
+     */
+    fun resolveSwitch(keepPhoneData: Boolean) {
+        val sw = _state.value.pendingSwitch ?: return
+        val token = pendingToken ?: return
+        pendingToken = null
+        scope.launch {
+            if (!keepPhoneData) library.clearForAccountSwitch()
+            commitAccount(sw.email, sw.name, sw.photo)
+            sync(token)
+        }
+    }
+
+    /** Передумали входить: остаёмся как были. */
+    fun cancelSwitch() {
+        pendingToken = null
+        _state.update { it.copy(pendingSwitch = null) }
     }
 
     fun reportError(message: String) = _state.update { it.copy(error = message) }
@@ -152,7 +213,8 @@ class SyncManager(
                 doSync(token)
             }
             val now = System.currentTimeMillis()
-            prefs.edit().putLong(KEY_LAST_SYNC, now).apply()
+            // Теперь на телефоне — оценки этого аккаунта, и всё сохранено на его Диске.
+            prefs.edit().putLong(KEY_LAST_SYNC, now).putString(KEY_OWNER, email).putBoolean(KEY_DIRTY, false).apply()
             _state.update { it.copy(syncing = false, lastSync = now, error = null, needsReauth = false) }
         } catch (e: Exception) {
             _state.update { it.copy(syncing = false, error = describe(e)) }
@@ -223,5 +285,16 @@ class SyncManager(
         private const val KEY_LAST_SYNC = "last_sync"
         private const val KEY_FOLDER = "folder_id"
         private const val KEY_WELCOME = "welcome_shown"
+        /** Чей аккаунт — хозяин оценок на телефоне (последняя успешная синхронизация). */
+        private const val KEY_OWNER = "library_owner"
+        /** Есть изменения, сделанные без входа (их нет ни на одном Диске). */
+        private const val KEY_DIRTY = "dirty_since_sync"
+
+        /**
+         * Спросить при входе? Да — если на телефоне есть оценки, и они принадлежат другому аккаунту.
+         * Оценки, которые ещё ни с кем не синхронизировались (owner = null), просто переносим в аккаунт.
+         */
+        fun needsSwitchPrompt(owner: String?, email: String, hasEntries: Boolean): Boolean =
+            hasEntries && owner != null && !owner.equals(email, ignoreCase = true)
     }
 }

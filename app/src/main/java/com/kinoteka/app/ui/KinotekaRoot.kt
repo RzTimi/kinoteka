@@ -46,6 +46,7 @@ import com.kinoteka.app.data.MediaCard
 import com.kinoteka.app.data.Section
 import com.kinoteka.app.i18n.tr
 import com.kinoteka.app.ui.components.UpdateDialog
+import com.kinoteka.app.ui.account.AccountSwitchDialog
 import com.kinoteka.app.data.share.ShareLink
 import com.kinoteka.app.ui.share.SharedListScreen
 import com.kinoteka.app.ui.about.AboutScreen
@@ -182,6 +183,17 @@ private fun AppScaffold() {
         WelcomeSyncDialog(
             onSignIn = { sync.welcomeShown = true; showWelcome = false; signIn() },
             onLater = { sync.welcomeShown = true; showWelcome = false },
+        )
+    }
+
+    // Вошли в другой аккаунт, а на телефоне оценки прежнего — спрашиваем, что делать.
+    val syncState by sync.state.collectAsStateWithLifecycle()
+    syncState.pendingSwitch?.let { sw ->
+        AccountSwitchDialog(
+            switch = sw,
+            onLoadNew = { sync.resolveSwitch(keepPhoneData = false) },
+            onMove = { sync.resolveSwitch(keepPhoneData = true) },
+            onCancel = sync::cancelSwitch,
         )
     }
 

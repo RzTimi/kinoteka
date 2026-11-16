@@ -228,6 +228,17 @@ class LibraryStore(context: Context) {
         persist()
     }
 
+    /**
+     * Вход в другой аккаунт с его собственными оценками: очищаем телефон, следом синхронизация
+     * загрузит оценки нового аккаунта. Прежние остаются на Диске прежнего аккаунта.
+     */
+    fun clearForAccountSwitch() {
+        _entries.value = emptyMap()
+        deleted.value = emptyMap()
+        _collections.value = emptyMap()
+        persist()
+    }
+
     private fun localChanged() {
         _localVersion.update { it + 1 }
         persist()
