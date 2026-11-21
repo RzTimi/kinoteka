@@ -82,6 +82,9 @@ class MediaRepository(
     /** Лёгкий запрос деталей (без актёров, видео и т.п.) — для напоминаний. */
     suspend fun detailsLite(type: MediaType, id: Int): TmdbDetails = api.details(type.path, id, append = "")
 
+    /** Название, жанры и актёры одним запросом — для обновления библиотеки. */
+    suspend fun detailsWithCast(type: MediaType, id: Int): TmdbDetails = api.details(type.path, id, append = "credits")
+
     /** Поиск фильма по названию и году — для импорта. */
     suspend fun findMovie(title: String, year: Int?): TmdbItem? =
         api.searchMovie(title, year).results.firstOrNull()

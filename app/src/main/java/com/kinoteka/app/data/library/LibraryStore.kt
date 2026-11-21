@@ -75,6 +75,8 @@ data class LibraryEntry(
     val manual: Boolean = false,
     /** Описание для фильмов, добавленных вручную. */
     val overview: String? = null,
+    /** Главные актёры (до 12, по порядку в титрах) — для фильтра «по актёру» в «Мої оцінки». */
+    val cast: List<CastRef> = emptyList(),
     /** Когда отмечен просмотренным (для статистики по месяцам). */
     val watchedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
@@ -100,6 +102,14 @@ data class LibraryEntry(
 /** «5» для целых, «5.2» для дробных. */
 fun formatScore(value: Double): String =
     if (value % 1.0 == 0.0) value.toInt().toString() else String.format(java.util.Locale.US, "%.1f", value)
+
+/** Актёр в библиотеке: id TMDB (чтобы не путать тёзок) и имя. */
+@Serializable
+data class CastRef(val id: Int, val name: String)
+
+/** Главные актёры из титров TMDB: первые 12, без пустых имён. */
+fun List<com.kinoteka.app.data.tmdb.CastMember>.topCast(): List<CastRef> =
+    filter { it.id > 0 && it.name.isNotBlank() }.distinctBy { it.id }.take(12).map { CastRef(it.id, it.name) }
 
 @Serializable
 data class LibraryFile(
@@ -165,13 +175,27 @@ class LibraryStore(context: Context) {
      * Обновить название и жанры на другом языке (после смены языка приложения).
      * updatedAt не трогаем: это не ваше изменение, и синхронизация не должна из-за него гонять данные.
      */
-    fun refreshMeta(key: String, title: String, genres: List<String>) {
+    fun refreshMeta(key: String, title: String, genres: List<String>, cast: List<CastRef>? = null) {
         var changed = false
         _entries.update { map ->
             val e = map[key] ?: return@update map
-            if (e.title == title && e.genres == genres) return@update map
+            val newCast = cast?.takeIf { it.isNotEmpty() } ?: e.cast
+            if (e.title == title && e.genres == genres && e.cast == newCast) return@update map
             changed = true
-            map + (key to e.copy(title = title, genres = genres.ifEmpty { e.genres }))
+            map + (key to e.copy(title = title, genres = genres.ifEmpty { e.genres }, cast = newCast))
+        }
+        if (changed) persist()
+    }
+
+    /** Дописать актёров (подтянули с TMDB). updatedAt не трогаем — это не ваше изменение. */
+    fun setCast(key: String, cast: List<CastRef>) {
+        if (cast.isEmpty()) return
+        var changed = false
+        _entries.update { map ->
+            val e = map[key] ?: return@update map
+            if (e.cast == cast) return@update map
+            changed = true
+            map + (key to e.copy(cast = cast))
         }
         if (changed) persist()
     }

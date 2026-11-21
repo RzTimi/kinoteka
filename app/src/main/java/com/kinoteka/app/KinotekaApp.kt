@@ -25,11 +25,14 @@ import okhttp3.OkHttpClient
 import java.io.File
 import com.kinoteka.app.ui.details.displayTitle
 import kotlinx.coroutines.flow.first
+import com.kinoteka.app.data.library.topCast
 
 class KinotekaApp : Application() {
     lateinit var container: AppContainer
         private set
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /** Для каких записей уже пробовали подтянуть актёров в этот запуск (чтобы не повторять). */
+    private val castTried = java.util.Collections.synchronizedSet(HashSet<String>())
 
     @OptIn(FlowPreview::class)
     override fun onCreate() {
@@ -48,14 +51,26 @@ class KinotekaApp : Application() {
             if (prefs.getString("library_meta_language", "uk") == lang.code) return@onEach
             for (e in container.library.entries.value.values.toList()) {
                 if (e.manual || container.ui.appLanguage.value != lang) continue
-                val d = runCatching { container.repository.detailsLite(e.type, e.tmdbId) }.getOrNull() ?: continue
+                val d = runCatching { container.repository.detailsWithCast(e.type, e.tmdbId) }.getOrNull() ?: continue
                 container.library.refreshMeta(
                     e.key,
                     d.displayTitle(e.type),
                     d.genres.map { g -> g.name.replaceFirstChar { c -> c.uppercase() } },
+                    d.credits?.cast?.topCast(),
                 )
             }
             if (container.ui.appLanguage.value == lang) prefs.edit().putString("library_meta_language", lang.code).apply()
+        }.launchIn(appScope)
+        // Актёры для фильтра «по актёру»: у фильмов без них (добавлены раньше, импорт, синхронизация)
+        // подтягиваем в фоне — при запуске и когда в библиотеке появляются новые записи.
+        container.library.entries.debounce(3_000).onEach { map ->
+            container.library.loaded.first { it }
+            val missing = map.values.filter { it.cast.isEmpty() && !it.manual && it.key !in castTried }
+            for (e in missing) {
+                castTried += e.key
+                val cast = runCatching { container.repository.detailsWithCast(e.type, e.tmdbId) }.getOrNull()?.credits?.cast?.topCast()
+                if (!cast.isNullOrEmpty()) container.library.setCast(e.key, cast)
+            }
         }.launchIn(appScope)
     }
 }

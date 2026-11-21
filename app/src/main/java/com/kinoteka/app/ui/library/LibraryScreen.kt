@@ -133,19 +133,41 @@ fun LibraryScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var collection by rememberSaveable { mutableStateOf<String?>(null) }
     var genre by rememberSaveable { mutableStateOf<String?>(null) }
+    var actorId by rememberSaveable { mutableStateOf<Int?>(null) }
     var shareList by remember { mutableStateOf(false) }
     val section = Section.fromName(sectionName)
 
     val bySection = all.filter { section == null || it.sectionEnum == section }
     val genresInLibrary = bySection.flatMap { it.genres }.groupingBy { it }.eachCount()
         .entries.sortedByDescending { it.value }.map { it.key }
+    // Актёры в вашей библиотеке: чаще встречающиеся — первыми, при равенстве — кто выше в титрах.
+    val actorsInLibrary = remember(bySection) {
+        val names = HashMap<Int, String>()
+        val count = HashMap<Int, Int>()
+        val bestOrder = HashMap<Int, Int>()
+        bySection.forEach { e ->
+            e.cast.forEachIndexed { i, c ->
+                names.putIfAbsent(c.id, c.name)
+                count[c.id] = (count[c.id] ?: 0) + 1
+                bestOrder[c.id] = minOf(bestOrder[c.id] ?: Int.MAX_VALUE, i)
+            }
+        }
+        count.keys.sortedWith(compareByDescending<Int> { count[it] }.thenBy { bestOrder[it] }.thenBy { names[it] })
+            .take(40)
+            .map { Triple(it, names[it].orEmpty(), count[it] ?: 0) }
+    }
+    val actorName = actorsInLibrary.firstOrNull { it.first == actorId }?.second
+        ?: bySection.firstNotNullOfOrNull { e -> e.cast.firstOrNull { it.id == actorId }?.name }
     val visible = sort.sort(
         bySection.filter(filter::matches)
             .filter { collection == null || collection in it.collections }
             .filter { genre == null || genre in it.genres }
+            .filter { e -> actorId == null || e.cast.any { it.id == actorId } }
             .filter {
                 query.isBlank() || it.displayTitle.contains(query.trim(), ignoreCase = true) ||
-                    it.title.contains(query.trim(), ignoreCase = true) || it.note.contains(query.trim(), ignoreCase = true)
+                    it.title.contains(query.trim(), ignoreCase = true) || it.note.contains(query.trim(), ignoreCase = true) ||
+                    // Поиск и по актёрам: «Ді Капріо» найдёт его фильмы.
+                    it.cast.any { c -> c.name.contains(query.trim(), ignoreCase = true) }
             }
     )
     val rated = bySection.mapNotNull { it.score }
@@ -249,6 +271,12 @@ fun LibraryScreen(
                     val options: List<String?> = listOf<String?>(null) + genresInLibrary
                     ChipRow(options, genre, { it ?: tr("Усі жанри", "All genres", "Все жанры") }, { genre = it })
                 }
+                if (actorsInLibrary.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    val options: List<Int?> = listOf<Int?>(null) + actorsInLibrary.map { it.first }
+                    val labels = actorsInLibrary.associate { (id, name, n) -> id to if (n > 1) "$name · $n" else name }
+                    ChipRow(options, actorId, { id -> id?.let { "🎭 " + labels[it].orEmpty() } ?: tr("Усі актори", "All actors", "Все актёры") }, { actorId = it })
+                }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stats,
@@ -276,6 +304,7 @@ fun LibraryScreen(
                 section?.title,
                 filter.takeIf { it != LibraryFilter.ALL }?.label,
                 genre,
+                actorName?.takeIf { actorId != null },
             ).joinToString(" · ").ifEmpty { tr("Мої оцінки", "My ratings", "Мои оценки") }
             ListShareDialog(title = listTitle, entries = visible, onDismiss = { shareList = false })
         }

@@ -19,6 +19,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.kinoteka.app.data.library.formatScore
+import com.kinoteka.app.data.library.topCast
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.FilterChipDefaults
@@ -225,6 +226,7 @@ class DetailsViewModel(
                     posterPath = d.posterPath,
                     year = d.year(),
                     genres = d.genres.map { g -> g.name.replaceFirstChar { c -> c.uppercase() } },
+                    cast = d.credits?.cast?.topCast() ?: old.cast,
                     runtime = runtime ?: old.runtime,
                 )
             )

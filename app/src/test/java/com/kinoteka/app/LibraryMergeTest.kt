@@ -5,6 +5,7 @@ import com.kinoteka.app.data.library.LibraryFile
 import com.kinoteka.app.data.library.LibraryStore
 import com.kinoteka.app.data.library.WatchStatus
 import com.kinoteka.app.data.library.formatScore
+import com.kinoteka.app.data.library.topCast
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -81,5 +82,34 @@ class LibraryMergeTest {
         assertEquals("5", formatScore(5.0))
         assertEquals("5.2", formatScore(5.2))
         assertEquals("10", formatScore(10.0))
+    }
+}
+
+/** Новое поле cast не ломает старые данные и старые версии приложения. */
+class LibraryFormatTest {
+    private val json = com.kinoteka.app.data.library.LibraryStore.JSON
+
+    @Test fun `old data without cast still loads`() {
+        val old = """{"version":1,"entries":[{"mediaType":"movie","tmdbId":5,"title":"Old","section":"MOVIES","rating":7}]}"""
+        val f = json.decodeFromString(LibraryFile.serializer(), old)
+        assertTrue(f.entries.single().cast.isEmpty())
+        assertEquals(7, f.entries.single().rating)
+    }
+
+    @Test fun `cast survives a round trip`() {
+        val e = LibraryEntry(mediaType = "movie", tmdbId = 1, title = "X", section = "MOVIES",
+            cast = listOf(com.kinoteka.app.data.library.CastRef(6193, "Леонардо Ді Капріо")))
+        val back = json.decodeFromString(LibraryFile.serializer(), json.encodeToString(LibraryFile.serializer(), LibraryFile(entries = listOf(e))))
+        assertEquals("Леонардо Ді Капріо", back.entries.single().cast.single().name)
+    }
+
+    @Test fun `top cast keeps billing order, drops blanks and duplicates, max 12`() {
+        val members = (1..20).map { com.kinoteka.app.data.tmdb.CastMember(id = it, name = "A$it") } +
+            com.kinoteka.app.data.tmdb.CastMember(id = 1, name = "A1 again") +
+            com.kinoteka.app.data.tmdb.CastMember(id = 0, name = "")
+        val top = members.topCast()
+        assertEquals(12, top.size)
+        assertEquals("A1", top.first().name)
+        assertEquals((1..12).toList(), top.map { it.id })
     }
 }
