@@ -153,11 +153,14 @@ fun LibraryScreen(
             }
         }
         count.keys.sortedWith(compareByDescending<Int> { count[it] }.thenBy { bestOrder[it] }.thenBy { names[it] })
-            .take(40)
-            .map { Triple(it, names[it].orEmpty(), count[it] ?: 0) }
+            .map { LibraryActor(it, names[it].orEmpty(), count[it] ?: 0) }
     }
-    val actorName = actorsInLibrary.firstOrNull { it.first == actorId }?.second
-        ?: bySection.firstNotNullOfOrNull { e -> e.cast.firstOrNull { it.id == actorId }?.name }
+    val actorCounts = remember(actorsInLibrary) { actorsInLibrary.associate { it.id to it.count } }
+    val pinnedActors by container.ui.pinnedActors.collectAsStateWithLifecycle()
+    var actorSheet by remember { mutableStateOf(false) }
+    val actorName = actorsInLibrary.firstOrNull { it.id == actorId }?.name
+        ?: pinnedActors.firstOrNull { it.id == actorId }?.name
+        ?: all.firstNotNullOfOrNull { e -> e.cast.firstOrNull { it.id == actorId }?.name }
     val visible = sort.sort(
         bySection.filter(filter::matches)
             .filter { collection == null || collection in it.collections }
@@ -271,11 +274,28 @@ fun LibraryScreen(
                     val options: List<String?> = listOf<String?>(null) + genresInLibrary
                     ChipRow(options, genre, { it ?: tr("Усі жанри", "All genres", "Все жанры") }, { genre = it })
                 }
-                if (actorsInLibrary.isNotEmpty()) {
+                if (actorsInLibrary.isNotEmpty() || pinnedActors.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
-                    val options: List<Int?> = listOf<Int?>(null) + actorsInLibrary.map { it.first }
-                    val labels = actorsInLibrary.associate { (id, name, n) -> id to if (n > 1) "$name · $n" else name }
-                    ChipRow(options, actorId, { id -> id?.let { "🎭 " + labels[it].orEmpty() } ?: tr("Усі актори", "All actors", "Все актёры") }, { actorId = it })
+                    // «Усі актори» · «Вибрати актора…» · закреплённые (📌 в окне выбора).
+                    ActorRow(
+                        selectedId = actorId,
+                        selectedName = actorName,
+                        pinned = pinnedActors,
+                        counts = actorCounts,
+                        onAll = { actorId = null },
+                        onChoose = { actorSheet = true },
+                        onSelect = { actorId = it },
+                    )
+                }
+                if (actorSheet) {
+                    ActorPickerSheet(
+                        actors = actorsInLibrary,
+                        selectedId = actorId,
+                        pinnedIds = pinnedActors.mapTo(HashSet()) { it.id },
+                        onSelect = { actorId = it; actorSheet = false },
+                        onTogglePin = container.ui::togglePinnedActor,
+                        onDismiss = { actorSheet = false },
+                    )
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(

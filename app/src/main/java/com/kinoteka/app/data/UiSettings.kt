@@ -88,6 +88,24 @@ class UiSettings(context: Context) {
         prefs.edit().putString(KEY_APP_LANGUAGE, value.code).apply()
     }
 
+    /** Закреплённые актёры — всегда видны в ряду актёров в «Мої оцінки». */
+    private val _pinnedActors = MutableStateFlow(
+        runCatching {
+            prefs.getString(KEY_PINNED_ACTORS, null)?.let {
+                kotlinx.serialization.json.Json.decodeFromString<List<com.kinoteka.app.data.library.CastRef>>(it)
+            }
+        }.getOrNull().orEmpty()
+    )
+    val pinnedActors: StateFlow<List<com.kinoteka.app.data.library.CastRef>> = _pinnedActors.asStateFlow()
+
+    /** Закрепить или открепить актёра. */
+    fun togglePinnedActor(actor: com.kinoteka.app.data.library.CastRef) {
+        val current = _pinnedActors.value
+        val updated = if (current.any { it.id == actor.id }) current.filter { it.id != actor.id } else current + actor
+        _pinnedActors.value = updated
+        prefs.edit().putString(KEY_PINNED_ACTORS, kotlinx.serialization.json.Json.encodeToString(updated)).apply()
+    }
+
     private val _sectionStyle = MutableStateFlow(
         SectionStyle.entries.firstOrNull { it.name == prefs.getString(KEY_STYLE, null) } ?: SectionStyle.CHIPS
     )
@@ -160,6 +178,7 @@ class UiSettings(context: Context) {
         const val KEY_REMINDERS = "reminders"
         const val KEY_LANGUAGE = "content_language"
         const val KEY_APP_LANGUAGE = "app_language"
+        const val KEY_PINNED_ACTORS = "pinned_actors"
         const val KEY_STYLE = "section_style"
         const val KEY_ORDER = "section_order"
         const val KEY_HIDDEN = "section_hidden"
