@@ -20,6 +20,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.kinoteka.app.data.library.formatScore
 import com.kinoteka.app.data.library.topCast
+import com.kinoteka.app.data.library.CastRef
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.FilterChipDefaults
@@ -599,8 +602,28 @@ private fun DetailsContent(
         if (cast.isNotEmpty()) {
             item { SectionTitle(tr("Актори", "Cast", "Актёры")) }
             item {
+                // Закреплённые актёры («Мої оцінки») — 📌 прямо в списке актёров.
+                val uiSettings = LocalContainer.current.ui
+                val pinnedActors by uiSettings.pinnedActors.collectAsStateWithLifecycle()
+                val toastContext = LocalContext.current
+                val togglePin: (CastMember) -> Unit = { c ->
+                    val wasPinned = pinnedActors.any { it.id == c.id }
+                    uiSettings.togglePinnedActor(CastRef(c.id, c.name))
+                    android.widget.Toast.makeText(
+                        toastContext,
+                        if (wasPinned) tr("${c.name} відкріплено", "${c.name} unpinned", "${c.name} откреплён")
+                        else tr("📌 ${c.name} закріплено в «Мої оцінки»", "📌 ${c.name} pinned in “My ratings”", "📌 ${c.name} закреплён в «Мои оценки»"),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(cast, key = { "${it.id}_${it.character}" }) { c -> CastItem(c) { onPerson(c.id) } }
+                    items(cast, key = { "${it.id}_${it.character}" }) { c ->
+                        CastItem(
+                            c,
+                            pinned = pinnedActors.any { it.id == c.id },
+                            onTogglePin = { togglePin(c) },
+                        ) { onPerson(c.id) }
+                    }
                 }
             }
         }
@@ -943,19 +966,38 @@ private fun ImdbBadge(rating: Pair<String, String>?, onClick: () -> Unit) {
 }
 
 @Composable
-private fun CastItem(c: CastMember, onClick: () -> Unit) {
+private fun CastItem(c: CastMember, pinned: Boolean, onTogglePin: () -> Unit, onClick: () -> Unit) {
     Column(
         Modifier.width(84.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (c.profilePath != null) {
-                AsyncImage(TmdbImages.profile(c.profilePath), c.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            } else {
-                Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(Modifier.size(80.dp)) {
+            Box(
+                Modifier.size(72.dp).align(Alignment.Center).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (c.profilePath != null) {
+                    AsyncImage(TmdbImages.profile(c.profilePath), c.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                } else {
+                    Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            // 📌 — закрепить актёра в «Мої оцінки» (сам кружок по-прежнему открывает страницу актёра).
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(if (pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
+                    .clickable(onClick = onTogglePin),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    if (pinned) tr("Відкріпити актора", "Unpin actor", "Открепить актёра") else tr("Закріпити актора", "Pin actor", "Закрепить актёра"),
+                    Modifier.size(16.dp),
+                    tint = if (pinned) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         Spacer(Modifier.height(4.dp))

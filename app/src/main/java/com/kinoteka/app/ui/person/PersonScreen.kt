@@ -31,6 +31,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,9 +110,33 @@ fun PersonScreen(id: Int, onBack: () -> Unit, onOpen: (MediaCard) -> Unit) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
+            // 📌 — закрепить актёра в ряду актёров «Мої оцінки».
+            val uiSettings = LocalContainer.current.ui
+            val pinnedActors by uiSettings.pinnedActors.collectAsStateWithLifecycle()
+            val pinned = pinnedActors.any { it.id == id }
+            val context = androidx.compose.ui.platform.LocalContext.current
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Назад", "Back", "Назад")) } },
+                actions = {
+                    if (title.isNotBlank()) {
+                        IconButton(onClick = {
+                            uiSettings.togglePinnedActor(com.kinoteka.app.data.library.CastRef(id, title))
+                            android.widget.Toast.makeText(
+                                context,
+                                if (pinned) tr("$title відкріплено", "$title unpinned", "$title откреплён")
+                                else tr("📌 $title закріплено в «Мої оцінки»", "📌 $title pinned in “My ratings”", "📌 $title закреплён в «Мои оценки»"),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }) {
+                            Icon(
+                                if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                                if (pinned) tr("Відкріпити актора", "Unpin actor", "Открепить актёра") else tr("Закріпити актора", "Pin actor", "Закрепить актёра"),
+                                tint = if (pinned) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                            )
+                        }
+                    }
+                },
             )
         },
     ) { padding ->
