@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -111,6 +112,8 @@ fun SnakeRating(
 
     Canvas(
         modifier
+            // Шляпа торчит над головой — оставляем ей место, чтобы не налезала на текст сверху.
+            .padding(top = if (rating != null && look.hat != SnakeHat.NONE && look.hat != SnakeHat.GLASSES) 14.dp else 0.dp)
             .fillMaxWidth()
             .height(height)
             .semantics { contentDescription = rating?.let { tr("Моя оцінка: ${formatScoreText(it)} з 10", "My rating: ${formatScoreText(it)} out of 10", "Моя оценка: ${formatScoreText(it)} из 10") } ?: tr("Оцінка не поставлена", "Not rated", "Оценка не поставлена") }
