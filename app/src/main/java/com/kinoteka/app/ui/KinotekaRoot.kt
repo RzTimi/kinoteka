@@ -113,9 +113,19 @@ fun KinotekaRoot(container: AppContainer) {
     // «Розмір інтерфейсу»: увеличиваем плотность, и пропорционально растёт всё — текст, кнопки, постеры.
     val base = LocalDensity.current
     val scaled = remember(base, scale) { Density(base.density * scale.factor, base.fontScale) }
+    // Вид змейки из «Гардероба» — для всех змеек-оценок в приложении.
+    val skinName by container.ui.snakeSkin.collectAsStateWithLifecycle()
+    val hatName by container.ui.snakeHat.collectAsStateWithLifecycle()
+    val snakeLook = remember(skinName, hatName) {
+        com.kinoteka.app.ui.details.SnakeLook(
+            skin = com.kinoteka.app.ui.stats.SnakeSkin.entries.firstOrNull { it.name == skinName } ?: com.kinoteka.app.ui.stats.SnakeSkin.GREEN,
+            hat = com.kinoteka.app.ui.stats.SnakeHat.entries.firstOrNull { it.name == hatName } ?: com.kinoteka.app.ui.stats.SnakeHat.NONE,
+        )
+    }
     CompositionLocalProvider(
         LocalContainer provides container,
         LocalLibrary provides library,
+        com.kinoteka.app.ui.details.LocalSnakeLook provides snakeLook,
         LocalDensity provides scaled,
         LocalSectionPrefs provides sectionPrefs,
     ) {

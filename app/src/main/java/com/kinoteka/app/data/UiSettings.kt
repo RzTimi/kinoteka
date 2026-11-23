@@ -106,6 +106,22 @@ class UiSettings(context: Context) {
         prefs.edit().putString(KEY_PINNED_ACTORS, kotlinx.serialization.json.Json.encodeToString(updated)).apply()
     }
 
+    /** Гардероб змейки: окрас и аксессуар (названия из SnakeSkin / SnakeHat). */
+    private val _snakeSkin = MutableStateFlow(prefs.getString(KEY_SNAKE_SKIN, null) ?: "GREEN")
+    val snakeSkin: StateFlow<String> = _snakeSkin.asStateFlow()
+    private val _snakeHat = MutableStateFlow(prefs.getString(KEY_SNAKE_HAT, null) ?: "NONE")
+    val snakeHat: StateFlow<String> = _snakeHat.asStateFlow()
+
+    fun setSnakeSkin(name: String) {
+        _snakeSkin.value = name
+        prefs.edit().putString(KEY_SNAKE_SKIN, name).apply()
+    }
+
+    fun setSnakeHat(name: String) {
+        _snakeHat.value = name
+        prefs.edit().putString(KEY_SNAKE_HAT, name).apply()
+    }
+
     private val _sectionStyle = MutableStateFlow(
         SectionStyle.entries.firstOrNull { it.name == prefs.getString(KEY_STYLE, null) } ?: SectionStyle.CHIPS
     )
@@ -179,6 +195,8 @@ class UiSettings(context: Context) {
         const val KEY_LANGUAGE = "content_language"
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_PINNED_ACTORS = "pinned_actors"
+        const val KEY_SNAKE_SKIN = "snake_skin"
+        const val KEY_SNAKE_HAT = "snake_hat"
         const val KEY_STYLE = "section_style"
         const val KEY_ORDER = "section_order"
         const val KEY_HIDDEN = "section_hidden"

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -17,6 +18,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import com.kinoteka.app.ui.stats.SnakeHat
+import com.kinoteka.app.ui.stats.SnakeSkin
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -26,15 +30,42 @@ import kotlin.math.PI
 import kotlin.math.floor
 import kotlin.math.sin
 
-// Палитра змейки
-private val Outline = Color(0xFF1F5F24)
-private val Body = Color(0xFF4CAF50)
-private val BodyLight = Color(0xFF8BD48F)
-/** Непрозрачный блик (смесь Body и BodyLight), чтобы кружки не накладывались пятнами. */
-private val BodyHighlight = Color(0xFF6CC270)
-private val Belly = Color(0xFFD4E99A)
-private val Diamond = Color(0xFF2E7D32)
-private val DiamondCenter = Color(0xFFB9E07C)
+/** Палитра змейки (окрас из «Гардероба»). */
+data class SnakePalette(
+    val outline: Color,
+    val body: Color,
+    val bodyLight: Color,
+    /** Непрозрачный блик (смесь body и bodyLight), чтобы кружки не накладывались пятнами. */
+    val highlight: Color,
+    val belly: Color,
+    val diamond: Color,
+    val diamondCenter: Color,
+    /** Радужная: цвет тела меняется вдоль длины. */
+    val rainbow: Boolean = false,
+) {
+    fun bodyAt(t: Float): Color = if (rainbow) Color.hsv((t * 300f) % 360f, 0.55f, 0.95f) else body
+    fun highlightAt(t: Float): Color = if (rainbow) Color.hsv((t * 300f) % 360f, 0.3f, 1f) else highlight
+}
+
+private val GreenPalette = SnakePalette(Color(0xFF1F5F24), Color(0xFF4CAF50), Color(0xFF8BD48F), Color(0xFF6CC270), Color(0xFFD4E99A), Color(0xFF2E7D32), Color(0xFFB9E07C))
+
+fun SnakeSkin.palette(): SnakePalette = when (this) {
+    SnakeSkin.GREEN -> GreenPalette
+    SnakeSkin.CORAL -> SnakePalette(Color(0xFF8E2C1F), Color(0xFFFF7A59), Color(0xFFFFB199), Color(0xFFFF9474), Color(0xFFFFE0B2), Color(0xFFC2410C), Color(0xFFFFD0A8))
+    SnakeSkin.OCEAN -> SnakePalette(Color(0xFF0D3B66), Color(0xFF2F80ED), Color(0xFF8EC5FF), Color(0xFF5AA2F5), Color(0xFFCDE7FF), Color(0xFF1A56A8), Color(0xFF9FD3FF))
+    SnakeSkin.SAKURA -> SnakePalette(Color(0xFF8C2F5A), Color(0xFFF48FB1), Color(0xFFFFC1D9), Color(0xFFF7A8C6), Color(0xFFFFF0F5), Color(0xFFD0567F), Color(0xFFFFE0EC))
+    SnakeSkin.VIOLET -> SnakePalette(Color(0xFF3F1D73), Color(0xFF8E5BD8), Color(0xFFC6A8F2), Color(0xFFA77FE3), Color(0xFFEDE1FF), Color(0xFF5E35B1), Color(0xFFD8C4FF))
+    SnakeSkin.ICE -> SnakePalette(Color(0xFF4A6C82), Color(0xFFB3E5FC), Color(0xFFFFFFFF), Color(0xFFD6F2FF), Color(0xFFFFFFFF), Color(0xFF4FC3F7), Color(0xFFE1F5FE))
+    SnakeSkin.NIGHT -> SnakePalette(Color(0xFF000000), Color(0xFF37474F), Color(0xFF78909C), Color(0xFF546E7A), Color(0xFF90A4AE), Color(0xFF7E57C2), Color(0xFFB39DDB))
+    SnakeSkin.GOLD -> SnakePalette(Color(0xFF7A5200), Color(0xFFF2B705), Color(0xFFFFE082), Color(0xFFF7CC45), Color(0xFFFFF3C4), Color(0xFFB8860B), Color(0xFFFFF59D))
+    SnakeSkin.RAINBOW -> GreenPalette.copy(outline = Color(0xFF424242), belly = Color(0xFFFFF8E1), diamond = Color(0x55FFFFFF), diamondCenter = Color(0xAAFFFFFF), rainbow = true)
+}
+
+/** Как выглядит змейка: окрас и аксессуар. Задаётся в «Статистика і змійка» → «Гардероб». */
+data class SnakeLook(val skin: SnakeSkin = SnakeSkin.GREEN, val hat: SnakeHat = SnakeHat.NONE)
+
+val LocalSnakeLook = compositionLocalOf { SnakeLook() }
+
 private val Blush = Color(0xFFFF8A80)
 private val Tongue = Color(0xFFE53935)
 private val Shadow = Color(0x22000000)
@@ -59,6 +90,8 @@ fun SnakeRating(
     height: androidx.compose.ui.unit.Dp = 68.dp,
 ) {
     val currentRating by rememberUpdatedState(rating)
+    val look = LocalSnakeLook.current
+    val pal = look.skin.palette()
     val ghost = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
 
     val gestures = if (!interactive) Modifier else Modifier
@@ -120,20 +153,22 @@ fun SnakeRating(
             }
             drawPath(shadowPath, Shadow, style = Stroke(width = maxR * 1.5f, cap = StrokeCap.Round))
             // 2. Контур и основной цвет.
-            body.forEachIndexed { k, p -> drawCircle(Outline, radii[k] + o, p) }
-            body.forEachIndexed { k, p -> drawCircle(Body, radii[k], p) }
+            val last1 = (body.size - 1).coerceAtLeast(1).toFloat()
+            body.forEachIndexed { k, p -> drawCircle(pal.outline, radii[k] + o, p) }
+            body.forEachIndexed { k, p -> drawCircle(pal.bodyAt(k / last1), radii[k], p) }
             // 3. Брюшко снизу.
-            body.forEachIndexed { k, p -> drawCircle(Belly, radii[k] * 0.48f, p + Offset(0f, radii[k] * 0.48f)) }
+            body.forEachIndexed { k, p -> drawCircle(pal.belly, radii[k] * 0.48f, p + Offset(0f, radii[k] * 0.48f)) }
             // 4. Узор-ромбики вдоль спины.
             var k = STEPS / 2
             while (k < body.size - STEPS / 3) {
-                drawDiamond(body[k] - Offset(0f, radii[k] * 0.12f), radii[k] * 0.62f)
+                drawDiamond(body[k] - Offset(0f, radii[k] * 0.12f), radii[k] * 0.62f, pal)
                 k += STEPS / 2
             }
             // 5. Блик сверху — даёт объём.
-            body.forEachIndexed { k2, p -> drawCircle(BodyHighlight, radii[k2] * 0.2f, p - Offset(0f, radii[k2] * 0.6f)) }
+            body.forEachIndexed { k2, p -> drawCircle(pal.highlightAt(k2 / last1), radii[k2] * 0.2f, p - Offset(0f, radii[k2] * 0.6f)) }
         }
-        drawHead(head, slotW)
+        drawHead(head, slotW, if (pal.rainbow) pal.copy(body = pal.bodyAt(1f), bodyLight = pal.highlightAt(1f)) else pal)
+        drawHat(head, slotW, look.hat)
     }
 }
 
@@ -176,7 +211,7 @@ private fun sampleSpline(points: List<Offset>, stepsPerSegment: Int): List<Offse
 }
 
 /** Ромбик узора с светлой серединкой. */
-private fun DrawScope.drawDiamond(c: Offset, size: Float) {
+private fun DrawScope.drawDiamond(c: Offset, size: Float, pal: SnakePalette) {
     fun diamond(s: Float) = Path().apply {
         moveTo(c.x, c.y - s * 0.6f)
         lineTo(c.x + s * 0.5f, c.y)
@@ -184,12 +219,12 @@ private fun DrawScope.drawDiamond(c: Offset, size: Float) {
         lineTo(c.x - s * 0.5f, c.y)
         close()
     }
-    drawPath(diamond(size), Diamond)
-    drawPath(diamond(size * 0.45f), DiamondCenter.copy(alpha = 0.8f))
+    drawPath(diamond(size), pal.diamond)
+    drawPath(diamond(size * 0.45f), pal.diamondCenter.copy(alpha = pal.diamondCenter.alpha * 0.8f))
 }
 
 /** Голова: округлая, с мордочкой, большими глазками с бликами, щёчками и язычком. */
-private fun DrawScope.drawHead(center: Offset, slotW: Float) {
+private fun DrawScope.drawHead(center: Offset, slotW: Float, pal: SnakePalette) {
     val w = slotW * 0.95f
     val h = slotW * 0.72f
     val left = center.x - w * 0.42f
@@ -219,22 +254,22 @@ private fun DrawScope.drawHead(center: Offset, slotW: Float) {
 
     // Тень, контур, голова.
     drawOval(Shadow, Offset(left, top + h * 0.75f), Size(w, h * 0.45f))
-    drawPath(headPath(o), Outline)
-    drawPath(headPath(0f), Body)
+    drawPath(headPath(o), pal.outline)
+    drawPath(headPath(0f), pal.body)
     // Нижняя челюсть светлее.
-    drawOval(Belly, Offset(left + w * 0.25f, center.y + h * 0.12f), Size(w * 0.62f, h * 0.3f))
+    drawOval(pal.belly, Offset(left + w * 0.25f, center.y + h * 0.12f), Size(w * 0.62f, h * 0.3f))
     // Блик на макушке.
-    drawOval(BodyLight.copy(alpha = 0.6f), Offset(left + w * 0.2f, top + h * 0.1f), Size(w * 0.45f, h * 0.16f))
+    drawOval(pal.bodyLight.copy(alpha = 0.6f), Offset(left + w * 0.2f, top + h * 0.1f), Size(w * 0.45f, h * 0.16f))
     // Ромбик на затылке.
-    drawDiamond(Offset(left + w * 0.2f, center.y - h * 0.05f), h * 0.35f)
+    drawDiamond(Offset(left + w * 0.2f, center.y - h * 0.05f), h * 0.35f, pal)
 
     // Щёчка.
     drawOval(Blush.copy(alpha = 0.55f), Offset(left + w * 0.5f, center.y + h * 0.08f), Size(w * 0.2f, h * 0.14f))
     // Ноздри.
-    drawCircle(Outline, h * 0.035f, Offset(left + w * 0.9f, center.y - h * 0.12f))
+    drawCircle(pal.outline, h * 0.035f, Offset(left + w * 0.9f, center.y - h * 0.12f))
     // Улыбка.
     drawArc(
-        color = Outline,
+        color = pal.outline,
         startAngle = 20f,
         sweepAngle = 70f,
         useCenter = false,
@@ -245,7 +280,7 @@ private fun DrawScope.drawHead(center: Offset, slotW: Float) {
     // Большой глаз с бликами (змейка в профиль — один глаз).
     val eye = Offset(left + w * 0.6f, center.y - h * 0.12f)
     val eyeR = h * 0.22f
-    drawCircle(Outline, eyeR + o * 0.6f, eye)
+    drawCircle(pal.outline, eyeR + o * 0.6f, eye)
     drawCircle(Color.White, eyeR, eye)
     drawCircle(Color(0xFF212121), eyeR * 0.68f, eye + Offset(eyeR * 0.18f, eyeR * 0.05f))
     drawCircle(Color.White, eyeR * 0.26f, eye + Offset(eyeR * 0.32f, -eyeR * 0.25f))
@@ -267,4 +302,29 @@ private fun DrawScope.drawSleepingHead(center: Offset, slotW: Float, color: Colo
         size = Size(w * 0.25f, h * 0.25f),
         style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round),
     )
+}
+
+/**
+ * Аксессуар из «Гардероба» (эмодзи): шляпы — на макушке, очки — на глазу.
+ * Рисуем текстом прямо на холсте.
+ */
+private fun DrawScope.drawHat(center: Offset, slotW: Float, hat: SnakeHat) {
+    if (hat == SnakeHat.NONE) return
+    val w = slotW * 0.95f
+    val h = slotW * 0.72f
+    val left = center.x - w * 0.42f
+    val top = center.y - h / 2
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textAlign = android.graphics.Paint.Align.CENTER }
+    val canvas = drawContext.canvas.nativeCanvas
+    if (hat == SnakeHat.GLASSES) {
+        // Очки — на глаз (змейка в профиль).
+        paint.textSize = h * 0.8f
+        canvas.drawText(hat.emoji, left + w * 0.62f, center.y - h * 0.12f + paint.textSize * 0.35f, paint)
+    } else {
+        paint.textSize = slotW * 0.62f
+        canvas.save()
+        canvas.rotate(-12f, left + w * 0.42f, top)
+        canvas.drawText(hat.emoji, left + w * 0.42f, top + paint.textSize * 0.28f, paint)
+        canvas.restore()
+    }
 }

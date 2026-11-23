@@ -305,7 +305,7 @@ fun LibraryScreen(
                         modifier = Modifier.weight(1f),
                     )
                     // Змейка-питомец: уровень, нажатие — статистика.
-                    val points = snakePoints(all)
+                    val points = remember(all, collections) { snakePoints(all, collections.size) }
                     val level = snakeLevels.last { points >= it.from }
                     Text(
                         "${level.emoji} ${level.name}",

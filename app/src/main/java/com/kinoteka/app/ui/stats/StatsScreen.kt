@@ -55,55 +55,6 @@ import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
-// ---------- Змейка-питомец ----------
-
-data class SnakeLevel(val name: String, val emoji: String, val from: Int)
-
-val snakeLevels: List<SnakeLevel> get() = listOf(
-    SnakeLevel(tr("Яйце", "Egg", "Яйцо"), "🥚", 0),
-    SnakeLevel(tr("Малюк", "Baby", "Малыш"), "🐍", 1),
-    SnakeLevel(tr("Вужик", "Grass snake", "Ужик"), "🐍", 5),
-    SnakeLevel(tr("Полоз", "Rat snake", "Полоз"), "🐍", 15),
-    SnakeLevel(tr("Пітон", "Python", "Питон"), "🐍", 30),
-    SnakeLevel(tr("Удав", "Boa", "Удав"), "🐍", 60),
-    SnakeLevel(tr("Анаконда", "Anaconda", "Анаконда"), "🐍", 100),
-    SnakeLevel(tr("Королівська кобра", "King cobra", "Королевская кобра"), "👑", 200),
-)
-
-/** Очки змейки: каждый просмотренный фильм/сериал = 1, каждые 5 серий = ещё 1. */
-fun snakePoints(entries: Collection<LibraryEntry>): Int =
-    entries.count { it.isWatched } + entries.sumOf { it.watchedEpisodeCount } / 5
-
-val LibraryEntry.isWatched: Boolean
-    get() = status == WatchStatus.WATCHED || rating != null || (type == MediaType.TV && watchedEpisodeCount > 0)
-
-// ---------- Достижения ----------
-
-data class Achievement(val emoji: String, val title: String, val description: String, val progress: Int, val goal: Int) {
-    val unlocked get() = progress >= goal
-}
-
-fun achievements(entries: Collection<LibraryEntry>, collections: Int): List<Achievement> {
-    val watched = entries.filter { it.isWatched }
-    fun section(s: Section) = watched.count { it.sectionEnum == s }
-    return listOf(
-        Achievement("⭐", tr("Перша оцінка", "First rating", "Первая оценка"), tr("Оцініть будь-який фільм", "Rate any movie", "Оцените любой фильм"), entries.count { it.rating != null }, 1),
-        Achievement("🎬", tr("Кіноман", "Movie buff", "Киноман"), tr("Перегляньте 10 фільмів", "Watch 10 movies", "Посмотрите 10 фильмов"), watched.count { it.type == MediaType.MOVIE }, 10),
-        Achievement("🍿", tr("Кіногурман", "Film gourmet", "Киногурман"), tr("Перегляньте 50 фільмів", "Watch 50 movies", "Посмотрите 50 фильмов"), watched.count { it.type == MediaType.MOVIE }, 50),
-        Achievement("📺", tr("Серіаломан", "Binge-watcher", "Сериаломан"), tr("Перегляньте 5 серіалів", "Watch 5 TV shows", "Посмотрите 5 сериалов"), watched.count { it.type == MediaType.TV }, 5),
-        Achievement("🎞", tr("Марафонець", "Marathoner", "Марафонец"), tr("Відмітьте 100 серій", "Check off 100 episodes", "Отметьте 100 серий"), entries.sumOf { it.watchedEpisodeCount }, 100),
-        Achievement("🌸", tr("Дорамщик", "Drama fan", "Дорамщик"), tr("Перегляньте 10 дорам", "Watch 10 dramas", "Посмотрите 10 дорам"), section(Section.DORAMAS), 10),
-        Achievement("✨", tr("Отаку", "Otaku", "Отаку"), tr("Перегляньте 10 аніме", "Watch 10 anime", "Посмотрите 10 аниме"), section(Section.ANIME), 10),
-        Achievement("🧸", tr("Дитинство", "Childhood", "Детство"), tr("Перегляньте 10 мультфільмів", "Watch 10 cartoons", "Посмотрите 10 мультфильмов"), section(Section.CARTOONS), 10),
-        Achievement("🖋", tr("Кінокритик", "Film critic", "Кинокритик"), tr("Напишіть 10 нотаток", "Write 10 notes", "Напишите 10 заметок"), entries.count { it.note.isNotBlank() }, 10),
-        Achievement("❤", tr("Закоханий у кіно", "In love with movies", "Влюблён в кино"), tr("Позначте 10 улюблених", "Mark 10 favorites", "Добавьте 10 в избранное"), entries.count { it.favorite }, 10),
-        Achievement("📁", tr("Колекціонер", "Collector", "Коллекционер"), tr("Створіть 3 підбірки", "Create 3 collections", "Создайте 3 подборки"), collections, 3),
-        Achievement("🎨", tr("Свій стиль", "Own style", "Свой стиль"), tr("Поставте свій постер", "Set your own poster", "Поставьте свой постер"), entries.count { it.customPoster != null }, 1),
-        Achievement("🏛", tr("Класика", "Classics", "Классика"), tr("Перегляньте 5 фільмів до 1980 року", "Watch 5 movies from before 1980", "Посмотрите 5 фильмов до 1980 года"), watched.count { (it.year?.toIntOrNull() ?: 9999) < 1980 }, 5),
-        Achievement("💯", tr("Сотня", "Century", "Сотня"), tr("Поставте 100 оцінок", "Give 100 ratings", "Поставьте 100 оценок"), entries.count { it.rating != null }, 100),
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun StatsScreen(onBack: () -> Unit) {
@@ -117,11 +68,13 @@ fun StatsScreen(onBack: () -> Unit) {
     val minutes = movies.sumOf { it.runtime ?: 110 } +
         entries.filter { it.type == MediaType.TV }.sumOf { it.watchedEpisodeCount * (it.runtime ?: 45) }
     val ratings = entries.mapNotNull { it.score }
-    val points = snakePoints(entries)
-    val levelIndex = snakeLevels.indexOfLast { points >= it.from }
+    val pointsDetail = snakePointsDetailed(entries, collections)
+    val points = pointsDetail.total
+    val levelIndex = snakeLevelIndex(points)
     val level = snakeLevels[levelIndex]
     val next = snakeLevels.getOrNull(levelIndex + 1)
     val achievementList = achievements(entries, collections)
+    val progress = SnakeProgress(levelIndex, achievementList.filter { it.unlocked }.mapTo(HashSet()) { it.id })
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -153,8 +106,9 @@ fun StatsScreen(onBack: () -> Unit) {
                                 modifier = Modifier.padding(vertical = 12.dp),
                             )
                         } else {
-                            // Чем выше уровень, тем длиннее змейка.
-                            SnakeRating(rating = (levelIndex + 3).coerceAtMost(10).toDouble(), onRate = {}, onClear = {}, interactive = false)
+                            // Чем выше уровень, тем длиннее змейка (в своём окрасе и аксессуаре).
+                            val length = 1.6 + levelIndex * (8.4 / (snakeLevels.size - 1))
+                            SnakeRating(rating = length, onRate = {}, onClear = {}, interactive = false)
                         }
                         Text(tr("Рівень ${levelIndex + 1} з ${snakeLevels.size}", "Level ${levelIndex + 1} of ${snakeLevels.size}", "Уровень ${levelIndex + 1} из ${snakeLevels.size}") + " · $points ${plural(points, "очко|очки|очок", "point|points", "очко|очка|очков")}", color = MaterialTheme.colorScheme.onPrimaryContainer)
                         if (next != null) {
@@ -176,9 +130,9 @@ fun StatsScreen(onBack: () -> Unit) {
                         }
                         Text(
                             tr(
-                                "Змійка росте з кожним переглянутим фільмом і кожними 5 серіями.",
-                                "The snake grows with every movie you watch and every 5 episodes.",
-                                "Змейка растёт с каждым просмотренным фильмом и каждыми 5 сериями.",
+                                "Очки: перегляди ${pointsDetail.titles} · серії ${pointsDetail.episodes} · досягнення ${pointsDetail.achievements}. Змійка росте з кожним переглянутим фільмом, кожними 5 серіями і кожним досягненням (🥉 3, 🥈 6, 🥇 12, 💎 25).",
+                                "Points: watched ${pointsDetail.titles} · episodes ${pointsDetail.episodes} · achievements ${pointsDetail.achievements}. The snake grows with every title you watch, every 5 episodes and every achievement (🥉 3, 🥈 6, 🥇 12, 💎 25).",
+                                "Очки: просмотры ${pointsDetail.titles} · серии ${pointsDetail.episodes} · достижения ${pointsDetail.achievements}. Змейка растёт с каждым просмотренным фильмом, каждыми 5 сериями и каждым достижением (🥉 3, 🥈 6, 🥇 12, 💎 25).",
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
@@ -186,6 +140,9 @@ fun StatsScreen(onBack: () -> Unit) {
                         )
                     }
                 }
+
+                // Гардероб змейки: окрасы и аксессуары, которые открываются достижениями и уровнями.
+                SnakeWardrobe(progress, achievementList)
 
                 // Цифры
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -235,8 +192,19 @@ fun StatsScreen(onBack: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    achievementList.sortedByDescending { it.unlocked }.forEach { AchievementTile(it) }
+                AchievementCategory.entries.forEach { cat ->
+                    val inCat = achievementList.filter { it.category == cat }
+                    Text(
+                        "${cat.label} · ${inCat.count { it.unlocked }}/${inCat.size}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // Полученные — первыми; среди остальных — ближайшие к получению.
+                        inCat.sortedWith(compareByDescending<Achievement> { it.unlocked }.thenByDescending { it.progress.toFloat() / it.goal })
+                            .forEach { AchievementTile(it) }
+                    }
                 }
                 Spacer(Modifier.height(16.dp))
             }
@@ -304,7 +272,11 @@ private fun AchievementTile(a: Achievement) {
         colors = if (a.unlocked) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer) else CardDefaults.cardColors(),
     ) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
-            Text(a.emoji, style = MaterialTheme.typography.headlineMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(a.emoji, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                // Ступень: 🥉 🥈 🥇 💎 и сколько очков даёт змейке.
+                Text("${a.tier.medal} +${a.tier.points}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Text(a.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(a.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))
