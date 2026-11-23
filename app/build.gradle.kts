@@ -28,8 +28,8 @@ android {
         applicationId = "com.kinoteka.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.4.3"
+        versionCode = 10
+        versionName = "0.4.4"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbKey\"")
         buildConfigField("String", "OMDB_API_KEY", "\"$omdbKey\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
