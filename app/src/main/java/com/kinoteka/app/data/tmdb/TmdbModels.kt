@@ -193,3 +193,46 @@ data class Provider(
     @SerialName("provider_name") val name: String = "",
     @SerialName("logo_path") val logoPath: String? = null,
 )
+
+/** Отзыв зрителя с TMDB (почти все — на английском). */
+@Serializable
+data class Review(
+    val id: String = "",
+    val author: String = "",
+    @SerialName("author_details") val authorDetails: ReviewAuthor? = null,
+    val content: String = "",
+    @SerialName("created_at") val createdAt: String? = null,
+    val url: String? = null,
+) {
+    val authorName: String get() = authorDetails?.name?.takeIf { it.isNotBlank() } ?: author.ifBlank { authorDetails?.username.orEmpty() }
+    val rating: Double? get() = authorDetails?.rating?.takeIf { it > 0 }
+
+    /** Аватар: у старых аккаунтов TMDB отдаёт «/https://gravatar…» — тогда это готовая ссылка. */
+    val avatarUrl: String? get() = authorDetails?.avatarPath?.takeIf { it.isNotBlank() }?.let { p ->
+        if (p.startsWith("/http")) p.drop(1) else TmdbImages.profile(p, "w45")
+    }
+}
+
+@Serializable
+data class ReviewAuthor(
+    val name: String? = null,
+    val username: String? = null,
+    @SerialName("avatar_path") val avatarPath: String? = null,
+    val rating: Double? = null,
+)
+
+/**
+ * Текст отзыва без разметки: TMDB хранит его с Markdown (**жирный**, _курсив_) и
+ * иногда с HTML-тегами. Оставляем только абзацы.
+ */
+fun cleanReviewText(raw: String): String = raw
+    .replace("\r\n", "\n").replace('\r', '\n')
+    .replace(Regex("""(?i)<br\s*/?>"""), "\n")
+    .replace(Regex("""<[^>]{1,40}>"""), "")
+    .replace(Regex("""\[([^\]]+)]\((https?://[^)]+)\)"""), "$1")
+    .replace(Regex("""(\*\*|__)(.+?)\1"""), "$2")
+    .replace(Regex("""(?<![\w*])[*_]([^*_\n]+)[*_](?![\w*])"""), "$1")
+    .replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&nbsp;", " ")
+    .lines().joinToString("\n") { it.trimEnd() }
+    .replace(Regex("\n{3,}"), "\n\n")
+    .trim()

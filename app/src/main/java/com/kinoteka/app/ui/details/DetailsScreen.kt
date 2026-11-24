@@ -204,11 +204,16 @@ class DetailsViewModel(
         viewModelScope.launch {
             val result = runCatching { repo.details(type, id) }
             _state.value = result.fold({ UiState.Success(it) }, { UiState.Error(it.friendlyMessage()) })
+            if (result.isSuccess) launch { _reviews.value = runCatching { repo.reviews(type, id) }.getOrDefault(emptyList()) }
             result.getOrNull()?.externalIds?.imdbId?.takeIf { it.isNotBlank() }?.let { imdbId ->
                 _imdb.value = repo.imdbRating(imdbId)
             }
         }
     }
+
+    /** Отзывы зрителей с TMDB (грузятся после основной информации; null — ещё грузятся). */
+    private val _reviews = MutableStateFlow<List<com.kinoteka.app.data.tmdb.Review>?>(null)
+    val reviews = _reviews.asStateFlow()
 
     private fun edit(change: (LibraryEntry) -> LibraryEntry) {
         val d = (state.value as? UiState.Success)?.data ?: return
@@ -625,6 +630,15 @@ private fun DetailsContent(
                         ) { onPerson(c.id) }
                     }
                 }
+            }
+        }
+
+        // Отзывы зрителей с TMDB.
+        item(key = "reviews") {
+            val reviews by vm.reviews.collectAsStateWithLifecycle()
+            reviews?.takeIf { it.isNotEmpty() }?.let { list ->
+                SectionTitle(tr("Відгуки глядачів · ${list.size}", "Audience reviews · ${list.size}", "Отзывы зрителей · ${list.size}"))
+                ReviewsRow(list, tmdbPage = com.kinoteka.app.ui.share.tmdbUrl(type, d.id) + "/reviews")
             }
         }
 

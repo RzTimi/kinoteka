@@ -291,6 +291,19 @@ class MediaRepository(
             .sortedWith(compareBy<ImageInfo>({ if (it.language == null) 0 else 1 }).thenByDescending { it.voteAverage })
             .take(60)
 
+    /**
+     * Отзывы зрителей с TMDB: сначала на языке приложения (их почти не бывает), потом английские.
+     * Новые — первыми.
+     */
+    suspend fun reviews(type: MediaType, id: Int): List<com.kinoteka.app.data.tmdb.Review> {
+        val own = if (I18n.language.tmdb.startsWith("en")) emptyList()
+        else runCatching { api.reviews(type.path, id, language = I18n.language.tmdb).results }.getOrDefault(emptyList())
+        val en = api.reviews(type.path, id, language = "en-US").results
+        return (own.sortedByDescending { it.createdAt } + en.sortedByDescending { it.createdAt })
+            .distinctBy { it.id }
+            .filter { it.content.isNotBlank() }
+    }
+
     suspend fun details(type: MediaType, id: Int): TmdbDetails {
         val uk = api.details(type.path, id)
         val ukTitle = (if (type == MediaType.MOVIE) uk.title ?: uk.name else uk.name ?: uk.title).orEmpty()

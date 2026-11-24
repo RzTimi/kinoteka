@@ -81,6 +81,15 @@ interface TmdbApi {
         @Query("include_image_language") languages: String = "uk,ru,en,null",
     ): ImagesResponse
 
+    /** Отзывы зрителей. Язык фильтрует отзывы: почти все есть только на английском. */
+    @GET("{type}/{id}/reviews")
+    suspend fun reviews(
+        @Path("type") type: String,
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("language") language: String? = null,
+    ): PagedResponse<Review>
+
     companion object {
         const val LANGUAGE = "uk-UA"
         const val REGION = "UA"
