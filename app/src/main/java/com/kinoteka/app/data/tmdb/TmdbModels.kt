@@ -229,10 +229,11 @@ fun cleanReviewText(raw: String): String = raw
     .replace("\r\n", "\n").replace('\r', '\n')
     .replace(Regex("""(?i)<br\s*/?>"""), "\n")
     .replace(Regex("""<[^>]{1,40}>"""), "")
+    .replace(Regex("""(?m)^[ \t]*>[ \t]?"""), "")
     .replace(Regex("""\[([^\]]+)]\((https?://[^)]+)\)"""), "$1")
     .replace(Regex("""(\*\*|__)(.+?)\1"""), "$2")
     .replace(Regex("""(?<![\w*])[*_]([^*_\n]+)[*_](?![\w*])"""), "$1")
     .replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&nbsp;", " ")
-    .lines().joinToString("\n") { it.trimEnd() }
+    .lines().joinToString("\n") { it.trim() }
     .replace(Regex("\n{3,}"), "\n\n")
     .trim()

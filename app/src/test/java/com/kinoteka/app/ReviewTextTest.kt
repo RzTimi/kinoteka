@@ -15,6 +15,11 @@ class ReviewTextTest {
     }
 
     @Test
+    fun stripsQuotesAndNestedEmphasis() {
+        assertEquals("An uncategorisable masterpiece\n\nWe all create", cleanReviewText("**_An uncategorisable masterpiece_**\r\n\r\n>_We all create_"))
+    }
+
+    @Test
     fun keepsSnakeCaseAndMath() {
         assertEquals("file_name_here and 2*3*4", cleanReviewText("file_name_here and 2*3*4"))
     }
